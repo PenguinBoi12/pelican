@@ -1,0 +1,12 @@
+# {migration_file}
+from pelican import migration
+
+
+@migration.up({migration_number})
+def up():
+    pass
+
+
+@migration.down({migration_number})
+def down():
+    pass
