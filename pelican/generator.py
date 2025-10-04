@@ -14,8 +14,7 @@ def generate_number() -> str:
 
 
 def generate_migration(
-        migration_dir: str | Path = 'db/migrations/',
-        name: str | None = None
+    migration_dir: str | Path = "db/migrations/", name: str | None = None
 ) -> Path:
     migration_number = generate_number()
     migration_file = Path(migration_dir) / f"{migration_number}_{name}.py"

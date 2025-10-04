@@ -7,16 +7,19 @@ F = TypeVar("F", bound=Callable[..., Any])
 
 class MigrationError(Exception):
     """Base exception for migration errors."""
+
     pass
 
 
 class MigrationNotFoundError(MigrationError):
     """Raised when a migration revision is not found."""
+
     pass
 
 
 class DuplicateMigrationError(MigrationError):
     """Raised when attempting to register duplicate up/down for same revision."""
+
     pass
 
 
@@ -24,12 +27,12 @@ class DuplicateMigrationError(MigrationError):
 class Migration:
     revision: int
     name: str
-    up: Callable | None = None
-    down: Callable | None = None
+    up: Callable[..., Any] | None = None
+    down: Callable[..., Any] | None = None
 
     @property
-    def display_name(self):
-        return self.name.replace('_', ' ').capitalize()
+    def display_name(self) -> str:
+        return self.name.replace("_", " ").capitalize()
 
     def has_up(self) -> bool:
         return self.up is not None
@@ -39,13 +42,12 @@ class Migration:
 
 
 class MigrationRegistry:
-    def __init__(self):
+    def __init__(self) -> None:
         self._migrations: dict[int, Migration] = {}
 
-    def register_up(self, revision: int, name: str, func: Callable) -> None:
+    def register_up(self, revision: int, name: str, func: F) -> None:
         migration = self._migrations.get(
-            revision,
-            Migration(revision=revision, name=name)
+            revision, Migration(revision=revision, name=name)
         )
 
         if not self._migrations.get(revision):
@@ -57,10 +59,9 @@ class MigrationRegistry:
             )
         migration.up = func
 
-    def register_down(self, revision: int, name: str, func: Callable) -> None:
+    def register_down(self, revision: int, name: str, func: F) -> None:
         migration = self._migrations.get(
-            revision,
-            Migration(revision=revision, name=name)
+            revision, Migration(revision=revision, name=name)
         )
 
         if not self._migrations.get(revision):
@@ -78,7 +79,7 @@ class MigrationRegistry:
     def get(self, revision: int) -> Migration:
         return self._migrations[revision]
 
-    def clear(self):
+    def clear(self) -> None:
         self._migrations.clear()
 
 
@@ -103,6 +104,7 @@ def up() -> Callable[[F], F]:
         revision, name = _fetch_migration_information(func)
         registry.register_up(revision, name, func)
         return func
+
     return decorator
 
 
@@ -124,6 +126,7 @@ def down() -> Callable[[F], F]:
         revision, name = _fetch_migration_information(func)
         registry.register_down(revision, name, func)
         return func
+
     return decorator
 
 

@@ -16,7 +16,7 @@ def discover_migration_files(migrations_dir: Path) -> list[Path]:
     if not migrations_dir.exists():
         raise FileNotFoundError(f"Migrations directory not found: {migrations_dir}")
 
-    migrations = [Path(f) for f in os.listdir(migrations_dir) if f.endswith('.py')]
+    migrations = [Path(f) for f in os.listdir(migrations_dir) if f.endswith(".py")]
     migrations.sort(reverse=True)
 
     return migrations
@@ -30,13 +30,15 @@ def load_migration_file(file_path: Path) -> None:
     """
     module_name = file_path.stem
 
-    spec = importlib.util.spec_from_file_location(module_name, file_path)
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[module_name] = module
-    spec.loader.exec_module(module)
+    if spec := importlib.util.spec_from_file_location(module_name, file_path):
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = module
+
+        if spec.loader:
+            spec.loader.exec_module(module)
 
 
-def load_migrations(migrations_dir: str | Path = 'db/migrations') -> None:
+def load_migrations(migrations_dir: str | Path = "db/migrations") -> None:
     """Load all migration files and populate the registry.
 
     :param migrations_dir: Path to migrations directory
