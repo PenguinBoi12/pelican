@@ -2,11 +2,11 @@
 from pelican import migration
 
 
-@migration.up({migration_number})
-def up():
+@migration.up()
+def upgrade():
     pass
 
 
-@migration.down({migration_number})
-def down():
+@migration.down()
+def downgrade():
     pass

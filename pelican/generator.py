@@ -13,9 +13,12 @@ def generate_number() -> str:
     return datetime.now().strftime("%Y%m%d%H%M%S")
 
 
-def generate_migration(path: str | Path, name: str) -> Path:
+def generate_migration(
+        migration_dir: str | Path = 'db/migrations/',
+        name: str | None = None
+) -> Path:
     migration_number = generate_number()
-    migration_file = Path(path) / f"{migration_number}_{name}.py"
+    migration_file = Path(migration_dir) / f"{migration_number}_{name}.py"
 
     content = _get_template("migration").format(
         migration_number=migration_number, migration_file=migration_file
