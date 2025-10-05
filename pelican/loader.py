@@ -6,13 +6,7 @@ from pelican import migration
 
 
 def discover_migration_files(migrations_dir: Path) -> list[Path]:
-    """Discover all migration files in the migrations directory.
-
-    :param migrations_dir: Path to migrations directory
-    :type migrations_dir: str | Path
-    :return: List of migration file paths sorted by revision
-    :rtype: list[Path]
-    """
+    """Return a sorted list of migration files in the specified directory."""
     if not migrations_dir.exists():
         raise FileNotFoundError(f"Migrations directory not found: {migrations_dir}")
 
@@ -23,11 +17,7 @@ def discover_migration_files(migrations_dir: Path) -> list[Path]:
 
 
 def load_migration_file(file_path: Path) -> None:
-    """Load a single migration file into the registry.
-
-    :param file_path: Path to the migration file
-    :type file_path: Path
-    """
+    """Load a single migration file into the system."""
     module_name = file_path.stem
 
     if spec := importlib.util.spec_from_file_location(module_name, file_path):
@@ -39,11 +29,7 @@ def load_migration_file(file_path: Path) -> None:
 
 
 def load_migrations(migrations_dir: str | Path = "db/migrations") -> None:
-    """Load all migration files and populate the registry.
-
-    :param migrations_dir: Path to migrations directory
-    :type migrations_dir: str | Path
-    """
+    """Load and register all migration files from the specified directory."""
     migrations_path = Path(migrations_dir)
     migration.clear()
 

@@ -11,12 +11,6 @@ class MigrationError(Exception):
     pass
 
 
-class MigrationNotFoundError(MigrationError):
-    """Raised when a migration revision is not found."""
-
-    pass
-
-
 class DuplicateMigrationError(MigrationError):
     """Raised when attempting to register duplicate up/down for same revision."""
 
@@ -77,31 +71,37 @@ class MigrationRegistry:
         return sorted(self._migrations.values(), key=lambda m: m.revision)
 
     def get(self, revision: int) -> Migration:
-        return self._migrations[revision]
+        return self._migrations.get(revision)
 
     def clear(self) -> None:
         self._migrations.clear()
 
+    def __len__(self) -> int:
+        return len(self.get_all())
 
-registry = MigrationRegistry()
+    def __iter__(self):
+        return iter(self.get_all())
 
 
 def up() -> Callable[[F], F]:
-    """Decorator for 'up' migration.
+    """Decorator to register a 'up' migration.
 
-    :return: Decorated function
-    :rtype: Callable
-    :raises DuplicateMigrationError: If 'up' already registered for this revision
+    ## Example
 
-    Example::
+    ```python
+    from pelican import migration
 
-        @up(20251003120000)
-        def upgrade():
-            create_table('users')
+
+    @migration.up()
+    def downgrade() -> None:
+        ...
+    ```
     """
 
     def decorator(func: F) -> F:
-        revision, name = _fetch_migration_information(func)
+        from pelican import registry
+
+        revision, name = _extract_migration_information(func)
         registry.register_up(revision, name, func)
         return func
 
@@ -109,21 +109,24 @@ def up() -> Callable[[F], F]:
 
 
 def down() -> Callable[[F], F]:
-    """Decorator for 'down' migration.
+    """Decorator to register a 'down' migration.
 
-    :return: Decorated function
-    :rtype: Callable
-    :raises DuplicateMigrationError: If 'down' already registered for this revision
+    ## Example
 
-    Example::
+    ```python
+    from pelican import migration
 
-        @down(20251003120000)
-        def downgrade():
-            drop_table('users')
+
+    @migration.down()
+    def downgrade() -> None:
+        ...
+    ```
     """
 
     def decorator(func: F) -> F:
-        revision, name = _fetch_migration_information(func)
+        from pelican import registry
+
+        revision, name = _extract_migration_information(func)
         registry.register_down(revision, name, func)
         return func
 
@@ -132,10 +135,12 @@ def down() -> Callable[[F], F]:
 
 def clear() -> None:
     """Clear all registered migrations"""
+    from pelican import registry
+
     registry.clear()
 
 
-def _fetch_migration_information(func: F) -> tuple[int, str]:
+def _extract_migration_information(func: F) -> tuple[int, str]:
     file_name = Path(func.__globals__.get("__file__", "")).name
     base_name = Path(file_name).stem
 

@@ -3,10 +3,10 @@ from pelican import migration
 
 
 @migration.up()
-def upgrade():
+def upgrade() -> None:
     pass
 
 
 @migration.down()
-def downgrade():
+def downgrade() -> None:
     pass

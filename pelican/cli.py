@@ -1,5 +1,5 @@
 from click import group, argument, echo, style
-from pelican import migration, loader, runner
+from pelican import registry, loader, runner
 
 DEFAULT_MIGRATION_DIR: str = "db/migrations/"
 
@@ -20,13 +20,21 @@ def generate(name: str) -> None:
 
 
 @cli.command()
-def up() -> None:
+@argument("revision", nargs=1, default=None, type=int)
+def up(revision: int | None) -> None:
     loader.load_migrations()
+
+    if migration := registry.get(revision or -1):
+        print(migration.up())
 
 
 @cli.command()
-def down() -> None:
+@argument("revision", nargs=1, default=None, type=int)
+def down(revision: int | None) -> None:
     loader.load_migrations()
+
+    if migration := registry.get(revision or -1):
+        print(migration.down())
 
 
 @cli.command()
@@ -40,12 +48,14 @@ def status() -> None:
     echo("\nMigration Status")
     echo("-" * 30)
 
-    for m in migration.registry.get_all():
-        is_applied = str(m.revision) in applied
+    for migration in registry:
+        is_applied = str(migration.revision) in applied
         status_symbol = "✓" if is_applied else "○"
         color = "green" if is_applied else "yellow"
 
-        echo(f"{style(status_symbol, fg=color)} {m.revision} {m.display_name}")
+        echo(
+            f"{style(status_symbol, fg=color)} {migration.revision} {migration.display_name}"
+        )
     echo()
 
 

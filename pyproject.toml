@@ -3,7 +3,7 @@ requires = ["setuptools>=64", "setuptools_scm>=8"]
 
 [project]
 name = "pelican_migration"
-version = "0.0.1-alpha"
+version = "1.0.0-alpha"
 authors = [
     { name="Simon Roy" },
 ]
@@ -13,6 +13,7 @@ license = { file="LICENSE" }
 requires-python = ">=3.12"
 
 dependencies = [
+    "dotenv",
     "sqlalchemy",
     "click",
 ]
