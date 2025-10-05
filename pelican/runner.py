@@ -1,7 +1,7 @@
 from os import environ
 from dotenv import load_dotenv
 from sqlalchemy.engine import Engine
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy import create_engine, MetaData
 
 
@@ -36,6 +36,6 @@ class MigrationRunner:
     @property
     def session(self) -> Session:
         if not self._session:
-            session_maker: sessionmaker = sessionmaker(bind=self.__engine)
+            session_maker: sessionmaker = sessionmaker(bind=self._engine)
             self._session = session_maker()
         return self._session

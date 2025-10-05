@@ -1,19 +1,21 @@
 from contextlib import contextmanager
-from typing import TypeVar, Any, Self, Iterator
+from typing import TypeVar, Any, Iterator
 from sqlalchemy.sql import func
-from sqlalchemy.engine import Engine
 from sqlalchemy import (
-    MetaData,
     Table,
     Column,
     Index,
     Integer,
+    Float,
+    Double,
     String,
     Text,
     Boolean,
     DateTime,
     ForeignKey,
+    MetaData,
 )
+from sqlalchemy.schema import CreateColumn, DDL
 
 _T = TypeVar("_T", bound=Any)
 
@@ -23,51 +25,65 @@ class TableBuilder:
         self,
         table_name: str,
         metadata: MetaData,
-        engine: Engine,
         primary_key: bool = True,
+        table: Table | None = None
     ) -> None:
         self.table_name = table_name
         self.metadata = metadata
-        self.engine = engine
-        self.columns: list[Column[Any]] = []
-        self.indexes: list[Index] = []
+        self.table = table
 
-        if primary_key:
+        self._is_existing_table = table is not None
+        self._columns_to_add: list[Column] = []
+        self._columns_to_remove: list[str] = []
+
+        if self.table is None:
+            self.table = Table(self.table_name, metadata)
+
+        if primary_key and not self._is_existing_table:
             self.integer("id", primary_key=True, autoincrement=True)
 
-    def column(self, name: str, type_: _T, *args, **kwargs) -> Self:
-        self.columns.append(Column(name, type_, *args, **kwargs))
-        return self
 
-    def integer(self, name: str, *args, **kwargs) -> Self:
-        self.column(name, Integer, *args, **kwargs)
-        return self
+    def add_column(self, name: str, type_: _T, *args, **kwargs) -> None:
+        column = Column(name, type_, *args, **kwargs)
 
-    def boolean(self, name: str, *args, **kwargs) -> Self:
-        self.column(name, Boolean, *args, **kwargs)
-        return self
+        if self._is_existing_table:
+            self._columns_to_add.append(column)
 
-    def string(self, name: str, length: int = 255, *args, **kwargs) -> Self:
-        self.column(name, String(length), *args, **kwargs)
-        return self
+        self.table.append_column(column, replace_existing=True)
 
-    def text(self, name: str, *args, **kwargs) -> Self:
-        self.column(name, Text, *args, **kwargs)
-        return self
+    def remove_column(self, name: str) -> None:
+        if not self.table:
+            raise ValueError("remove_column can only be used on existing table")
+        self._columns_to_remove.append(name)
 
-    def datetime(self, name: str, *args, **kwargs) -> Self:
+    def integer(self, name: str, *args, **kwargs) -> None:
+        self.add_column(name, Integer, *args, **kwargs)
+
+    def float(self, name: str, *args, **kwargs) -> None:
+        self.add_column(name, Float, *args, **kwargs)
+
+    def double(self, name: str, *args, **kwargs) -> None:
+        self.add_column(name, Double, *args, **kwargs)
+
+    def boolean(self, name: str, *args, **kwargs) -> None:
+        self.add_column(name, Boolean, *args, **kwargs)
+
+    def string(self, name: str, length: int = 255, *args, **kwargs) -> None:
+        self.add_column(name, String(length), *args, **kwargs)
+
+    def text(self, name: str, *args, **kwargs) -> None:
+        self.add_column(name, Text, *args, **kwargs)
+
+    def datetime(self, name: str, *args, **kwargs) -> None:
         default = kwargs.pop("default", func.now())
-        self.column(name, DateTime, default=default, *args, **kwargs)
-        return self
+        self.add_column(name, DateTime, default=default, *args, **kwargs)
 
-    def timestamps(self) -> Self:
+    def timestamps(self) -> None:
         self.datetime("created_at", nullable=False)
         self.datetime("updated_at", onupdate=func.now(), nullable=False)
-        return self
 
-    # can be improved
-    def references(self, table_name: str, on_delete: str = "CASCADE", **kwargs) -> Self:
-        self.columns.append(
+    def references(self, table_name: str, on_delete: str = "CASCADE", **kwargs) -> None:
+        self.table.append_column(
             Column(
                 f"{table_name.rstrip('s')}_id",
                 Integer,
@@ -75,33 +91,87 @@ class TableBuilder:
                 **kwargs,
             )
         )
-        return self
 
-    def build(self) -> Table:
-        """Build and create the table in the database."""
-        table = Table(self.table_name, self.metadata, *self.columns)
-        table.create(self.engine, checkfirst=True)
+    def index(self, column_names: list[str], name: str | None = None, unique: bool = False) -> None:
+        if not column_names:
+            raise ValueError("At least one column name is required for an index")
 
-        for index_info in self.indexes:
-            idx = Index(
-                index_info["name"],
-                *[table.c[col] for col in index_info["columns"]],
-                unique=index_info["unique"],
-            )
-            idx.create(self.engine)
-        return table
+        if name is None:
+            suffix = "unique" if unique else "idx"
+            name = f"{self.table_name}_{'_'.join(column_names)}_{suffix}"
+
+        Index(name, *[self.table.c[col] for col in column_names], unique=unique)
 
 
 @contextmanager
 def create_table(table_name: str) -> Iterator[TableBuilder]:
+    """Create a new table
+
+    ## Example
+
+    ```python
+    from pelican import create_table
+
+
+    @migration.up()
+    def upgrade():
+        with create_table('spaceships') as t:
+            t.string('name', nullable=False)
+            t.string('designation', nullable=False)
+            t.integer('crew_capacity', default=1)
+            t.timestamps()
+    ```
+    """
     from pelican import runner
 
-    builder = TableBuilder(table_name, runner.metadata, runner.engine)
+    builder = TableBuilder(table_name, runner.metadata)
     yield builder
-    builder.build()
+
+    with runner.engine.begin() as conn:
+        builder.table.create(conn, checkfirst=True)
+
+
+@contextmanager
+def  change_table(table_name: str) -> Iterator[TableBuilder]:
+    from pelican import runner
+
+    table = Table(
+        table_name,
+        runner.metadata,
+        autoload_with=runner.engine,
+        extend_existing=True
+    )
+
+    builder = TableBuilder(table_name, runner.metadata, table=table)
+    yield builder
+
+    with runner.engine.begin() as conn:
+        for col in builder._columns_to_add:
+            col_sql = str(CreateColumn(col).compile(dialect=runner.engine.dialect))
+            ddl = DDL(f"ALTER TABLE {builder.table_name} ADD COLUMN {col_sql}")
+            conn.execute(ddl)
+
+        for name in builder._columns_to_remove:
+            ddl = DDL(f"ALTER TABLE {builder.table_name} DROP COLUMN {name}")
+            conn.execute(ddl)
 
 
 def drop_table(table_name: str) -> None:
+    """Drop an existing table
+
+    ## Example
+
+    ```python
+    from pelican import drop_table
+
+
+    @migration.down()
+    def downgrade():
+        drop_table('spaceships')
+    ```
+    """
     from pelican import runner
 
-    Table(table_name, runner.metadata, autoload_with=runner.engine).drop(runner.engine)
+    with runner.engine.begin() as conn:
+        table = Table(table_name, runner.metadata, autoload_with=runner.engine)
+        table.drop(conn)
