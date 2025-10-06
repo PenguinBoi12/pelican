@@ -26,7 +26,7 @@ class TableBuilder:
         table_name: str,
         metadata: MetaData,
         primary_key: bool = True,
-        table: Table | None = None
+        table: Table | None = None,
     ) -> None:
         self.table_name = table_name
         self.metadata = metadata
@@ -41,7 +41,6 @@ class TableBuilder:
 
         if primary_key and not self._is_existing_table:
             self.integer("id", primary_key=True, autoincrement=True)
-
 
     def add_column(self, name: str, type_: _T, *args, **kwargs) -> None:
         column = Column(name, type_, *args, **kwargs)
@@ -98,7 +97,9 @@ class TableBuilder:
             )
         )
 
-    def index(self, column_names: list[str], name: str | None = None, unique: bool = False) -> None:
+    def index(
+        self, column_names: list[str], name: str | None = None, unique: bool = False
+    ) -> None:
         if not column_names:
             raise ValueError("At least one column name is required for an index")
 
@@ -138,14 +139,11 @@ def create_table(table_name: str, primary_key: bool = True) -> Iterator[TableBui
 
 
 @contextmanager
-def  change_table(table_name: str) -> Iterator[TableBuilder]:
+def change_table(table_name: str) -> Iterator[TableBuilder]:
     from pelican import runner
 
     table = Table(
-        table_name,
-        runner.metadata,
-        autoload_with=runner.engine,
-        extend_existing=True
+        table_name, runner.metadata, autoload_with=runner.engine, extend_existing=True
     )
 
     builder = TableBuilder(table_name, runner.metadata, table=table)

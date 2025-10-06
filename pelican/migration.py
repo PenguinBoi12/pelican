@@ -32,7 +32,7 @@ class Migration:
 
     @property
     def file_name(self):
-        return f'{self.revision}_{self.name}.py'
+        return f"{self.revision}_{self.name}.py"
 
     def has_up(self) -> bool:
         return self.up is not None

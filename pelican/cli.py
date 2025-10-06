@@ -24,8 +24,10 @@ def generate(name: str) -> None:
 def up(revision: int | None) -> None:
     loader.load_migrations()
 
+    # TODO: execute this in runner?
     if migration := registry.get(revision or -1):
-        print(migration.up())
+        migration.up()
+        runner.record_applied(migration.revision)
 
 
 @cli.command()
@@ -33,8 +35,10 @@ def up(revision: int | None) -> None:
 def down(revision: int | None) -> None:
     loader.load_migrations()
 
+    # TODO: execute this in runner?
     if migration := registry.get(revision or -1):
-        print(migration.down())
+        migration.down()
+        runner.record_unapplied(migration.revision)
 
 
 @cli.command()
@@ -42,14 +46,13 @@ def status() -> None:
     """Display the migration status."""
     loader.load_migrations(DEFAULT_MIGRATION_DIR)
 
-    # TODO: find applied migrations
-    applied: list[str] = []
+    applied = runner.get_applied_versions()
 
     echo("\nMigration Status")
     echo("-" * 30)
 
     for migration in registry:
-        is_applied = str(migration.revision) in applied
+        is_applied = migration.revision in applied
         status_symbol = "✓" if is_applied else "○"
         color = "green" if is_applied else "yellow"
 
