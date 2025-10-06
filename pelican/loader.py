@@ -2,7 +2,7 @@ import os
 import sys
 import importlib.util
 from pathlib import Path
-from pelican import migration
+from pelican import registry
 
 
 def discover_migration_files(migrations_dir: Path) -> list[Path]:
@@ -31,7 +31,7 @@ def load_migration_file(file_path: Path) -> None:
 def load_migrations(migrations_dir: str | Path = "db/migrations") -> None:
     """Load and register all migration files from the specified directory."""
     migrations_path = Path(migrations_dir)
-    migration.clear()
+    registry.clear()
 
     for file_path in discover_migration_files(migrations_path):
         load_migration_file(migrations_path / file_path)

@@ -33,8 +33,8 @@ class TableBuilder:
         self.table = table
 
         self._is_existing_table = table is not None
-        self._columns_to_add: list[Column] = []
-        self._columns_to_remove: list[str] = []
+        self.columns_to_add: list[Column] = []
+        self.columns_to_remove: list[str] = []
 
         if self.table is None:
             self.table = Table(self.table_name, metadata)
@@ -47,14 +47,20 @@ class TableBuilder:
         column = Column(name, type_, *args, **kwargs)
 
         if self._is_existing_table:
-            self._columns_to_add.append(column)
+            self.columns_to_add.append(column)
 
         self.table.append_column(column, replace_existing=True)
+
+    # rename_column
+    # change_column
 
     def remove_column(self, name: str) -> None:
         if not self.table:
             raise ValueError("remove_column can only be used on existing table")
         self._columns_to_remove.append(name)
+
+    # change
+    # remove
 
     def integer(self, name: str, *args, **kwargs) -> None:
         self.add_column(name, Integer, *args, **kwargs)
@@ -104,7 +110,7 @@ class TableBuilder:
 
 
 @contextmanager
-def create_table(table_name: str) -> Iterator[TableBuilder]:
+def create_table(table_name: str, primary_key: bool = True) -> Iterator[TableBuilder]:
     """Create a new table
 
     ## Example
@@ -124,7 +130,7 @@ def create_table(table_name: str) -> Iterator[TableBuilder]:
     """
     from pelican import runner
 
-    builder = TableBuilder(table_name, runner.metadata)
+    builder = TableBuilder(table_name, runner.metadata, primary_key=primary_key)
     yield builder
 
     with runner.engine.begin() as conn:
@@ -146,12 +152,12 @@ def  change_table(table_name: str) -> Iterator[TableBuilder]:
     yield builder
 
     with runner.engine.begin() as conn:
-        for col in builder._columns_to_add:
+        for col in builder.columns_to_add:
             col_sql = str(CreateColumn(col).compile(dialect=runner.engine.dialect))
             ddl = DDL(f"ALTER TABLE {builder.table_name} ADD COLUMN {col_sql}")
             conn.execute(ddl)
 
-        for name in builder._columns_to_remove:
+        for name in builder.columns_to_remove:
             ddl = DDL(f"ALTER TABLE {builder.table_name} DROP COLUMN {name}")
             conn.execute(ddl)
 
