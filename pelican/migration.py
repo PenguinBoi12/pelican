@@ -1,6 +1,8 @@
 from pathlib import Path
 from typing import Callable, TypeVar, Any
 from dataclasses import dataclass
+from datetime import datetime
+
 
 F = TypeVar("F", bound=Callable[..., Any])
 
@@ -19,14 +21,18 @@ class DuplicateMigrationError(MigrationError):
 
 @dataclass
 class Migration:
-    revision: int
     name: str
+    revision: int
     up: Callable[..., Any] | None = None
     down: Callable[..., Any] | None = None
 
     @property
     def display_name(self) -> str:
         return self.name.replace("_", " ").capitalize()
+
+    @property
+    def file_name(self):
+        return f'{self.revision}_{self.name}.py'
 
     def has_up(self) -> bool:
         return self.up is not None
@@ -83,8 +89,8 @@ class MigrationRegistry:
         return iter(self.get_all())
 
 
-def up() -> Callable[[F], F]:
-    """Decorator to register a 'up' migration.
+def up(func: F) -> F:
+    """Decorator to register an 'up' migration.
 
     ## Example
 
@@ -92,23 +98,20 @@ def up() -> Callable[[F], F]:
     from pelican import migration
 
 
-    @migration.up()
+    @migration.up
     def downgrade() -> None:
         ...
     ```
     """
+    from pelican import registry
 
-    def decorator(func: F) -> F:
-        from pelican import registry
+    revision, name = _extract_migration_information(func)
+    registry.register_up(revision, name, func)
 
-        revision, name = _extract_migration_information(func)
-        registry.register_up(revision, name, func)
-        return func
-
-    return decorator
+    return func
 
 
-def down() -> Callable[[F], F]:
+def down(func: F) -> F:
     """Decorator to register a 'down' migration.
 
     ## Example
@@ -117,27 +120,17 @@ def down() -> Callable[[F], F]:
     from pelican import migration
 
 
-    @migration.down()
+    @migration.down
     def downgrade() -> None:
         ...
     ```
     """
-
-    def decorator(func: F) -> F:
-        from pelican import registry
-
-        revision, name = _extract_migration_information(func)
-        registry.register_down(revision, name, func)
-        return func
-
-    return decorator
-
-
-def clear() -> None:
-    """Clear all registered migrations"""
     from pelican import registry
 
-    registry.clear()
+    revision, name = _extract_migration_information(func)
+    registry.register_down(revision, name, func)
+
+    return func
 
 
 def _extract_migration_information(func: F) -> tuple[int, str]:
