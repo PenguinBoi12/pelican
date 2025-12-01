@@ -26,9 +26,8 @@ def downgrade():
 ## Installation
 
 ```bash
-$ pip install pelican @ git+https://github.com/PenguinBoi12/pelican.git@main
+$ pip install pelican-migration
 ```
-_(Not available on PyPi yet)_
 
 ## Usage
 
@@ -39,6 +38,30 @@ $ pelican generate create_spaceships
 ```
 
 This creates a new file under `db/migrations/` using the default template.
+
+```python
+"""20251002014707 - Create spaceships"""
+from pelican import (
+    migration,
+    create_table,
+    change_table,
+    drop_table
+)
+
+
+@migration.up
+def upgrade():
+    with create_table('spaceships') as t:
+        t.string('name', nullable=False)
+        t.timestamps()
+        t.index(['id', 'name'])
+
+
+@migration.down
+def downgrade():
+    drop_table('spaceships')
+
+```
 
 ### Apply
 
