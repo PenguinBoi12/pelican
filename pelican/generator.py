@@ -15,9 +15,7 @@ def _generate_revision() -> int:
     return int(datetime.now().strftime("%Y%m%d%H%M%S"))
 
 
-def generate_migration(
-    migration_dir: str | Path = "db/migrations/", name: str | None = None
-) -> Path:
+def generate_migration(name: str, migration_dir: str | Path = "db/migrations/") -> Path:
     migration = Migration(revision=_generate_revision(), name=name)
     migration_file = Path(migration_dir) / migration.file_name
 

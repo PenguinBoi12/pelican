@@ -23,7 +23,9 @@ def generate(name: str) -> None:
 def up(revision: int | None) -> None:
     """Upgrade the migration to the given or latest revision."""
     loader.load_migrations()
-    runner.upgrade(registry.get(revision))
+
+    if migration := registry.get(revision):
+        runner.upgrade(migration)
 
 
 @cli.command()
@@ -31,7 +33,9 @@ def up(revision: int | None) -> None:
 def down(revision: int | None) -> None:
     """Downgrade the migration to the given or latest revision."""
     loader.load_migrations()
-    runner.downgrade(registry.get(revision))
+
+    if migration := registry.get(revision):
+        runner.downgrade(migration)
 
 
 @cli.command()

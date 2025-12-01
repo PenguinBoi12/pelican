@@ -17,7 +17,7 @@ class _SchemaMigration(SQLModel, table=True):
 
 
 class MigrationRunner:
-    def __init__(self):
+    def __init__(self) -> None:
         load_dotenv(".env")
 
         self._engine: Engine | None = None
@@ -55,9 +55,7 @@ class MigrationRunner:
     def ensure_version_table_exists(self) -> None:
         inspector = inspect(self.engine)
         if "pelican_migration" not in inspector.get_table_names():
-            SQLModel.metadata.create_all(
-                self.engine, tables=[_SchemaMigration.__table__]
-            )
+            SQLModel.metadata.create_all(self.engine)
 
     def get_applied_versions(self) -> Iterator[int]:
         with SQLModelSession(self.engine) as s:
@@ -65,10 +63,16 @@ class MigrationRunner:
                 yield int(version)
 
     def upgrade(self, migration: Migration) -> None:
+        if not migration.up:
+            raise ValueError("Migration is not an upgrade")
+
         migration.up()
         self._record_applied(migration.revision)
 
     def downgrade(self, migration: Migration) -> None:
+        if not migration.down:
+            raise ValueError("Migration is not an upgrade")
+
         migration.down()
         self._record_unapplied(migration.revision)
 

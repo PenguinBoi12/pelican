@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Callable, TypeVar, Any
+from typing import Any, Callable, TypeVar, Iterator
 from dataclasses import dataclass
 
 F = TypeVar("F", bound=Callable[..., Any])
@@ -29,7 +29,7 @@ class Migration:
         return self.name.replace("_", " ").capitalize()
 
     @property
-    def file_name(self):
+    def file_name(self) -> str:
         return f"{self.revision}_{self.name}.py"
 
     def has_up(self) -> bool:
@@ -74,7 +74,7 @@ class MigrationRegistry:
     def get_all(self) -> list[Migration]:
         return sorted(self._migrations.values(), key=lambda m: m.revision)
 
-    def get(self, revision: int | None) -> Migration:
+    def get(self, revision: int | None) -> Migration | None:
         return self._migrations.get(revision or -1)
 
     def clear(self) -> None:
@@ -83,7 +83,7 @@ class MigrationRegistry:
     def __len__(self) -> int:
         return len(self.get_all())
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Migration]:
         return iter(self.get_all())
 
 

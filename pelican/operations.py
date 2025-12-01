@@ -1,5 +1,5 @@
 from contextlib import contextmanager
-from typing import TypeVar, Any, Iterator
+from typing import TypeVar, Any, Iterator, TypedDict, Unpack
 from sqlalchemy.sql import func
 from sqlalchemy import (
     Table,
@@ -30,56 +30,55 @@ class TableBuilder:
     ) -> None:
         self.table_name = table_name
         self.metadata = metadata
-        self.table = table
+
+        if table is None:
+            self.table = Table(self.table_name, metadata)
 
         self._is_existing_table = table is not None
         self.columns_to_add: list[Column] = []
         self.columns_to_remove: list[str] = []
 
-        if self.table is None:
-            self.table = Table(self.table_name, metadata)
-
         if primary_key and not self._is_existing_table:
             self.integer("id", primary_key=True, autoincrement=True)
 
-    def add_column(self, name: str, type_: _T, *args, **kwargs) -> None:
+    def add_column(self, name: str, type_: _T, *args: Any, **kwargs: Any) -> None:
         column = Column(name, type_, *args, **kwargs)
+
+        self.table.append_column(column, replace_existing=True)
 
         if self._is_existing_table:
             self.columns_to_add.append(column)
-
-        self.table.append_column(column, replace_existing=True)
 
     # rename_column
     # change_column
 
     def remove_column(self, name: str) -> None:
-        if not self.table:
+        if not self._is_existing_table:
             raise ValueError("remove_column can only be used on existing table")
-        self._columns_to_remove.append(name)
+        self.columns_to_remove.append(name)
 
     # change
     # remove
 
-    def integer(self, name: str, *args, **kwargs) -> None:
+    def integer(self, name: str, *args: Any, **kwargs: Any) -> None:
         self.add_column(name, Integer, *args, **kwargs)
 
-    def float(self, name: str, *args, **kwargs) -> None:
+    def float(self, name: str, *args: Any, **kwargs: Any) -> None:
         self.add_column(name, Float, *args, **kwargs)
 
-    def double(self, name: str, *args, **kwargs) -> None:
+    def double(self, name: str, *args: Any, **kwargs: Any) -> None:
         self.add_column(name, Double, *args, **kwargs)
 
-    def boolean(self, name: str, *args, **kwargs) -> None:
+    def boolean(self, name: str, *args: Any, **kwargs: Any) -> None:
         self.add_column(name, Boolean, *args, **kwargs)
 
-    def string(self, name: str, length: int = 255, *args, **kwargs) -> None:
+    def string(self, name: str, length: int = 255, *args: Any, **kwargs: Any) -> None:
         self.add_column(name, String(length), *args, **kwargs)
 
-    def text(self, name: str, *args, **kwargs) -> None:
+    def text(self, name: str, *args: Any, **kwargs: Any) -> None:
         self.add_column(name, Text, *args, **kwargs)
 
-    def datetime(self, name: str, *args, **kwargs) -> None:
+    def datetime(self, name: str, *args: Any, **kwargs: Any) -> None:
         default = kwargs.pop("default", func.now())
         self.add_column(name, DateTime, default=default, *args, **kwargs)
 
@@ -87,7 +86,9 @@ class TableBuilder:
         self.datetime("created_at", nullable=False)
         self.datetime("updated_at", onupdate=func.now(), nullable=False)
 
-    def references(self, table_name: str, on_delete: str = "CASCADE", **kwargs) -> None:
+    def references(
+        self, table_name: str, on_delete: str = "CASCADE", **kwargs: Any
+    ) -> None:
         self.table.append_column(
             Column(
                 f"{table_name.rstrip('s')}_id",
