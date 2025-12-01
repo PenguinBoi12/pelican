@@ -41,46 +41,50 @@ class TableBuilder:
         if primary_key and not self._is_existing_table:
             self.integer("id", primary_key=True, autoincrement=True)
 
-    def add_column(self, name: str, type_: _T, *args: Any, **kwargs: Any) -> None:
-        column = Column(name, type_, *args, **kwargs)
+    def column(self, name: str, type_: _T, *args: Any, **kwargs: Any) -> None:
+        column_ = Column(name, type_, *args, **kwargs)
 
-        self.table.append_column(column, replace_existing=True)
+        self.table.append_column(column_, replace_existing=True)
 
         if self._is_existing_table:
-            self.columns_to_add.append(column)
+            self.columns_to_add.append(column_)
 
-    # rename_column
-    # change_column
+    def alter(self, name: str, **kwargs: Any) -> None:
+        if not self._is_existing_table:
+            raise ValueError("remove_column can only be used on existing table")
+        raise NotImplementedError()
 
-    def remove_column(self, name: str) -> None:
+    def rename(self, name: str, new_name: str) -> None:
+        if not self._is_existing_table:
+            raise ValueError("remove_column can only be used on existing table")
+        raise NotImplementedError()
+
+    def drop(self, name: str) -> None:
         if not self._is_existing_table:
             raise ValueError("remove_column can only be used on existing table")
         self.columns_to_remove.append(name)
 
-    # change
-    # remove
-
     def integer(self, name: str, *args: Any, **kwargs: Any) -> None:
-        self.add_column(name, Integer, *args, **kwargs)
+        self.column(name, Integer, *args, **kwargs)
 
     def float(self, name: str, *args: Any, **kwargs: Any) -> None:
-        self.add_column(name, Float, *args, **kwargs)
+        self.column(name, Float, *args, **kwargs)
 
     def double(self, name: str, *args: Any, **kwargs: Any) -> None:
-        self.add_column(name, Double, *args, **kwargs)
+        self.column(name, Double, *args, **kwargs)
 
     def boolean(self, name: str, *args: Any, **kwargs: Any) -> None:
-        self.add_column(name, Boolean, *args, **kwargs)
+        self.column(name, Boolean, *args, **kwargs)
 
     def string(self, name: str, length: int = 255, *args: Any, **kwargs: Any) -> None:
-        self.add_column(name, String(length), *args, **kwargs)
+        self.column(name, String(length), *args, **kwargs)
 
     def text(self, name: str, *args: Any, **kwargs: Any) -> None:
-        self.add_column(name, Text, *args, **kwargs)
+        self.column(name, Text, *args, **kwargs)
 
     def datetime(self, name: str, *args: Any, **kwargs: Any) -> None:
         default = kwargs.pop("default", func.now())
-        self.add_column(name, DateTime, default=default, *args, **kwargs)
+        self.column(name, DateTime, default=default, *args, **kwargs)
 
     def timestamps(self) -> None:
         self.datetime("created_at", nullable=False)
@@ -141,6 +145,23 @@ def create_table(table_name: str, primary_key: bool = True) -> Iterator[TableBui
 
 @contextmanager
 def change_table(table_name: str) -> Iterator[TableBuilder]:
+    """Create a new table
+
+    ## Example
+
+    ```python
+    from pelican import change_table
+
+
+    @migration.up()
+    def upgrade():
+        with change_table('spaceships') as t:
+            t.string('name', nullable=False) # add column
+            t.alter('name', nullable=True) # alter column
+            t.rename('name', 'new_name') # rename column
+            t.drop('new_name') # drop column
+    ```
+    """
     from pelican import runner
 
     table = Table(
