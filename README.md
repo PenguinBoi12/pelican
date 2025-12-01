@@ -4,6 +4,7 @@
 
 [![Tests](https://github.com/PenguinBoi12/pelican/actions/workflows/tests.yml/badge.svg)](https://github.com/PenguinBoi12/pelican/actions/workflows/tests.yml)
 [![CodeQL Advanced](https://github.com/PenguinBoi12/pelican/actions/workflows/codeql.yml/badge.svg)](https://github.com/PenguinBoi12/pelican/actions/workflows/codeql.yml)
+![PyPI - Version](https://img.shields.io/pypi/v/pelican-migration)
 
 Pelican is a lightweight tool for managing database schema changes. It focuses on **readability, simplicity and clean developer experience.**
 
