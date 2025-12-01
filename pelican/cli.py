@@ -1,8 +1,6 @@
 from click import group, argument, echo, style
 from pelican import registry, loader, runner
 
-DEFAULT_MIGRATION_DIR: str = "db/migrations/"
-
 
 @group()
 def cli() -> None:
@@ -13,6 +11,7 @@ def cli() -> None:
 @cli.command()
 @argument("name", nargs=1)
 def generate(name: str) -> None:
+    """Generate a new migration with the given name"""
     from .generator import generate_migration
 
     migration_file = generate_migration(name=name)
@@ -22,30 +21,23 @@ def generate(name: str) -> None:
 @cli.command()
 @argument("revision", nargs=1, default=None, type=int)
 def up(revision: int | None) -> None:
+    """Upgrade the migration to the given or latest revision."""
     loader.load_migrations()
-
-    # TODO: execute this in runner?
-    if migration := registry.get(revision or -1):
-        migration.up()
-        runner.record_applied(migration.revision)
+    runner.upgrade(registry.get(revision))
 
 
 @cli.command()
 @argument("revision", nargs=1, default=None, type=int)
 def down(revision: int | None) -> None:
+    """Downgrade the migration to the given or latest revision."""
     loader.load_migrations()
-
-    # TODO: execute this in runner?
-    if migration := registry.get(revision or -1):
-        migration.down()
-        runner.record_unapplied(migration.revision)
+    runner.downgrade(registry.get(revision))
 
 
 @cli.command()
 def status() -> None:
     """Display the migration status."""
-    loader.load_migrations(DEFAULT_MIGRATION_DIR)
-
+    loader.load_migrations()
     applied = runner.get_applied_versions()
 
     echo("\nMigration Status")

@@ -1,8 +1,6 @@
 from pathlib import Path
 from typing import Callable, TypeVar, Any
 from dataclasses import dataclass
-from datetime import datetime
-
 
 F = TypeVar("F", bound=Callable[..., Any])
 
@@ -76,8 +74,8 @@ class MigrationRegistry:
     def get_all(self) -> list[Migration]:
         return sorted(self._migrations.values(), key=lambda m: m.revision)
 
-    def get(self, revision: int) -> Migration:
-        return self._migrations.get(revision)
+    def get(self, revision: int | None) -> Migration:
+        return self._migrations.get(revision or -1)
 
     def clear(self) -> None:
         self._migrations.clear()

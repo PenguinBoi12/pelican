@@ -6,6 +6,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy import inspect, create_engine, MetaData
 from sqlmodel import SQLModel, Session as SQLModelSession, Field, select
+from pelican.migration import Migration
 
 
 class _SchemaMigration(SQLModel, table=True):
@@ -63,10 +64,18 @@ class MigrationRunner:
             for version in s.exec(select(_SchemaMigration.version)):
                 yield int(version)
 
-    def record_applied(self, version: int) -> None:
+    def upgrade(self, migration: Migration) -> None:
+        migration.up()
+        self._record_applied(migration.revision)
+
+    def downgrade(self, migration: Migration) -> None:
+        migration.down()
+        self._record_unapplied(migration.revision)
+
+    def _record_applied(self, version: int) -> None:
         self.session.add(_SchemaMigration(version=version))
         self.session.commit()
 
-    def record_unapplied(self, version: int) -> None:
+    def _record_unapplied(self, version: int) -> None:
         self.session.query(_SchemaMigration).filter_by(version=version).delete()
         self.session.commit()
