@@ -3,6 +3,7 @@
 > A modern, minimal migration framework for SQLAlchemy
 
 [![Tests](https://github.com/PenguinBoi12/pelican/actions/workflows/tests.yml/badge.svg)](https://github.com/PenguinBoi12/pelican/actions/workflows/tests.yml)
+[![CodeQL Advanced](https://github.com/PenguinBoi12/pelican/actions/workflows/codeql.yml/badge.svg)](https://github.com/PenguinBoi12/pelican/actions/workflows/codeql.yml)
 
 Pelican is a lightweight tool for managing database schema changes. It focuses on **readability, simplicity and clean developer experience.**
 
