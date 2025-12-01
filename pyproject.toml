@@ -2,7 +2,7 @@
 requires = ["setuptools>=64", "setuptools_scm>=8"]
 
 [project]
-name = "pelican_migration"
+name = "pelican-migration"
 version = "1.0.0-alpha"
 authors = [
     { name="Simon Roy" },
@@ -13,17 +13,17 @@ license = { file="LICENSE" }
 requires-python = ">=3.12"
 
 dependencies = [
-    "dotenv",
-    "sqlalchemy",
-    "sqlmodel",
-    "click",
+    "python-dotenv==1.2.1",
+    "sqlalchemy==2.0.44",
+    "sqlmodel==0.0.27",
+    "click==8.3.0",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest",
-    "black",
-    "mypy",
+    "pytest==8.4.2",
+    "black==25.9.0",
+    "mypy==1.18.2",
 ]
 
 [project.urls]
