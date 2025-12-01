@@ -97,7 +97,7 @@ def up(func: F) -> F:
 
 
     @migration.up
-    def downgrade() -> None:
+    def upgrade() -> None:
         ...
     ```
     """
