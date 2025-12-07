@@ -1,14 +1,14 @@
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, Iterable
 from sqlalchemy.types import TypeEngine
+from sqlalchemy.sql import DDLElement
 from sqlalchemy.schema import (
-    DDL,
     CreateColumn,
     CreateIndex,
     DropIndex,
-    DDLElement,
 )
 from sqlalchemy import (
+    text,
     Table,
     Column,
     Index,
@@ -22,26 +22,16 @@ class DialectCompiler(ABC):
         self.engine = engine
         self.dialect = engine.dialect
 
-    def add_column(self, table_name: str, column: Column) -> DDLElement:
-        return DDL(
-            "ALTER TABLE %(table)s ADD COLUMN %(column)s",
-            context={
-                "table": table_name,
-                "column": CreateColumn(column).compile(dialect=self.dialect)
-            }
-        )
+    def add_column(self, table_name: str, column: Column) -> Iterable[DDLElement]:
+        sql = f"ALTER TABLE {table_name} ADD COLUMN {CreateColumn(column).compile(dialect=self.dialect)}"
+        return [text(sql)]
 
-    def drop_column(self, table_name: str, column_name: str) -> DDLElement:
-        return DDL(
-            "ALTER TABLE %(table)s DROP COLUMN %(column_name)",
-            context={
-                "table": table_name,
-                "column_name": column_name
-            }
-        )
+    def drop_column(self, table_name: str, column_name: str) -> Iterable[DDLElement]:
+        sql = f"ALTER TABLE {table_name} DROP COLUMN {column_name}"
+        return [text(sql)]
 
     @abstractmethod
-    def rename_column(self, table_name: str, old_name: str, new_name: str) -> DDLElement:
+    def rename_column(self, table_name: str, old_name: str, new_name: str) -> Iterable[DDLElement]:
         pass
 
     @abstractmethod
@@ -53,7 +43,7 @@ class DialectCompiler(ABC):
         nullable: bool | None = None,
         default: Any = None,
         server_default: Any = None,
-    ) -> list[DDLElement]:
+    ) -> Iterable[DDLElement]:
         pass
 
     def create_index(
@@ -62,7 +52,7 @@ class DialectCompiler(ABC):
         index_name: str,
         column_names: list[str],
         unique: bool = False,
-    ) -> DDLElement:
+    ) -> Iterable[DDLElement]:
         metadata = MetaData()
         table = Table(
             table_name,
@@ -74,22 +64,11 @@ class DialectCompiler(ABC):
         columns = [table.c[col_name] for col_name in column_names]
         index = Index(index_name, *columns, unique=unique)
 
-        return CreateIndex(index)
+        return [CreateIndex(index)]
 
-    def drop_index(self, table_name: str, index_name: str) -> DDLElement:
+    def drop_index(self, table_name: str, index_name: str) -> Iterable[DDLElement]:
         metadata = MetaData()
         table = Table(table_name, metadata)
         index = Index(index_name, _table=table)
 
-        return DropIndex(index)
-
-    def execute(self, connection, ddl: DDLElement | list[DDLElement]) -> None:
-        def _execute(s):
-            sql = str(ddl.compile(dialect=self.dialect))
-            connection.exec_driver_sql(sql)
-
-        if isinstance(ddl, list):
-            for statement in ddl:
-                execute(statement)
-        else:
-            execute(ddl)
+        return [DropIndex(index)]

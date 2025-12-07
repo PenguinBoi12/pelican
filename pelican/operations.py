@@ -1,7 +1,7 @@
+from typing import TypeVar, Any, Iterator, Iterable
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from contextlib import contextmanager
-from typing import TypeVar, Any, Iterator
 from sqlalchemy.types import TypeEngine
 from sqlalchemy.schema import DDLElement
 from sqlalchemy.sql import func
@@ -23,19 +23,12 @@ from .compilers import DialectCompiler
 _T = TypeVar("_T", bound=Any)
 
 
-# TODO: Move to compiler?
 @dataclass
 class Operation(ABC):
     table_name: str
 
-    def execute(self, compiler: DialectCompiler, connection) -> None:
-        """Execute this operation using the dialect adapter"""
-        ddl = self.to_ddl(compiler)
-        compiler.execute_ddl(connection, ddl)
-
     @abstractmethod
-    def to_ddl(self, compiler: DialectCompiler) -> DDLElement | list[DDLElement]:
-        """Convert operation to SQL for specific dialect"""
+    def compile(self, compiler: DialectCompiler) -> Iterable[DDLElement]:
         pass
 
 
@@ -43,7 +36,7 @@ class Operation(ABC):
 class AddColumn(Operation):
     column: Column
 
-    def to_ddl(self, compiler: DialectCompiler) -> DDLElement:
+    def compile(self, compiler: DialectCompiler) -> Iterable[DDLElement]:
         return compiler.add_column(self.table_name, self.column)
 
 
@@ -51,7 +44,7 @@ class AddColumn(Operation):
 class DropColumn(Operation):
     column_name: str
 
-    def to_ddl(self, compiler: DialectCompiler) -> DDLElement:
+    def compile(self, compiler: DialectCompiler) -> Iterable[DDLElement]:
         return compiler.drop_column(self.table_name, self.column_name)
 
 
@@ -60,7 +53,7 @@ class RenameColumn(Operation):
     old_name: str
     new_name: str
 
-    def to_ddl(self, compiler: DialectCompiler) -> DDLElement:
+    def compile(self, compiler: DialectCompiler) -> Iterable[DDLElement]:
         return compiler.rename_column(self.table_name, self.old_name, self.new_name)
 
 
@@ -72,7 +65,7 @@ class AlterColumn(Operation):
     default: Any = None
     server_default: Any = None
 
-    def to_ddl(self, compiler: DialectCompiler) -> DDLElement | list[DDLElement]:
+    def compile(self, compiler: DialectCompiler) -> Iterable[DDLElement]:
         return compiler.alter_column(
             self.table_name,
             self.column_name,
@@ -89,7 +82,7 @@ class CreateIndex(Operation):
     column_names: list[str]
     unique: bool
 
-    def to_ddl(self, compiler: DialectCompiler) -> DDLElement:
+    def compile(self, compiler: DialectCompiler) -> Iterable[DDLElement]:
         return compiler.create_index(
             self.table_name, self.index_name, self.column_names, self.unique
         )
@@ -99,7 +92,7 @@ class CreateIndex(Operation):
 class RemoveIndex(Operation):
     index_name: str
 
-    def to_ddl(self, compiler: DialectCompiler) -> DDLElement:
+    def compile(self, compiler: DialectCompiler) -> Iterable[DDLElement]:
         return compiler.drop_index(self.table_name, self.index_name)
 
 
@@ -123,6 +116,7 @@ class TableBuilder:
 
     def column(self, name: str, type_: _T, *args: Any, **kwargs: Any) -> None:
         column_ = Column(name, type_, *args, **kwargs)
+        # TODO: Add Column class for the builder which would then be used to build the SA Column in the compiler
         self.table.append_column(column_, replace_existing=True)
 
         if self._is_existing_table:
@@ -236,8 +230,7 @@ def create_table(table_name: str, primary_key: bool = True) -> Iterator[TableBui
     with runner.engine.begin() as conn:
         builder.table.create(conn, checkfirst=True)
 
-        for operation in builder.operations:
-            operation.execute(runner.compiler, conn)
+    runner.execute_operations(builder.operations)
 
 
 @contextmanager
@@ -268,18 +261,7 @@ def change_table(table_name: str) -> Iterator[TableBuilder]:
     builder = TableBuilder(table_name, runner.metadata, table=table)
     yield builder
 
-    with runner.engine.begin() as conn:
-        for operation in builder.operations:
-            try:
-                operation.execute(runner.compiler, conn)
-            except NotImplementedError as e:
-                # Handle SQLite limitations gracefully
-                if "SQLite" in str(e) and isinstance(operation, AlterColumnOperation):
-                    raise NotImplementedError(
-                        f"SQLite does not support altering column '{operation.column_name}'. "
-                        f"Consider using batch_alter_table() or recreating the table manually."
-                    ) from e
-                raise
+    runner.execute_operations(builder.operations)
 
 
 def drop_table(table_name: str) -> None:

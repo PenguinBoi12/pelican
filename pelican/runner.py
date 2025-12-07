@@ -1,14 +1,18 @@
 from os import environ
 from dotenv import load_dotenv
 from datetime import datetime
-from typing import Iterator
+from typing import Union, Iterator, Iterable, TYPE_CHECKING
 
 from sqlalchemy import inspect, create_engine, MetaData
 from sqlalchemy.engine import Engine
+from sqlalchemy.sql import Executable, DDLElement
 from sqlmodel import SQLModel, Session, Field, select
 
 from .migration import Migration
 from .compilers import DialectCompiler, SQLiteCompiler
+
+if TYPE_CHECKING:
+    from .operations import Operation
 
 
 _DIALECT_COMPILERS: dict[str, type[DialectCompiler]] = {
@@ -43,11 +47,6 @@ class MigrationRunner:
 
         self._ensure_version_table_exists()
 
-    def _ensure_version_table_exists(self) -> None:
-        inspector = inspect(self.engine)
-        if "pelican_migration" not in inspector.get_table_names():
-            _SchemaMigration.metadata.create_all(self.engine)
-
     def get_applied_versions(self) -> Iterator[int]:
         with Session(self.engine) as s:
             for version in s.exec(select(_SchemaMigration.version)):
@@ -68,6 +67,39 @@ class MigrationRunner:
         migration.down()
         migration.is_applied = False
         self._record_unapplied(migration.revision)
+
+    def execute(self, ddls: Iterable[Union[str, Executable]]) -> None:
+        compiled_statements: list[tuple[str, dict]] = []
+
+        for ddl in ddls:
+            if isinstance(ddl, str):
+                compiled_statements.append((ddl, {}))
+                continue
+
+            compiled = ddl.compile(dialect=self.engine.dialect)
+            sql = compiled.string
+            params = compiled.params or {}
+            compiled_statements.append((sql, params))
+
+        with self.engine.begin() as conn:
+            for sql, params in compiled_statements:
+                conn.exec_driver_sql(sql, params)
+
+    def execute_operations(self, operations: Iterable["Operation"]) -> None:
+        compiled_ddls = []
+
+        for operation in operations:
+            ddls = operation.compile(self.compiler)
+            compiled_ddls.extend(list(ddls))
+
+        self.execute(compiled_ddls)
+
+
+
+    def _ensure_version_table_exists(self) -> None:
+        inspector = inspect(self.engine)
+        if "pelican_migration" not in inspector.get_table_names():
+            _SchemaMigration.metadata.create_all(self.engine)
 
     def _record_applied(self, version: int) -> None:
         with Session(self.engine) as session:
