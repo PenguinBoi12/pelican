@@ -23,7 +23,6 @@ class Migration:
     revision: int
     up: Callable[..., Any] | None = None
     down: Callable[..., Any] | None = None
-    is_applied: bool = False
 
     @property
     def display_name(self) -> str:
@@ -73,12 +72,6 @@ class MigrationRegistry:
 
     def get(self, revision: int) -> Migration | None:
         return self._migrations.get(revision)
-
-    def get_last_applied(self) -> Migration | None:
-        return next((m for m in reversed(self._migrations.values()) if m.is_applied), None)
-
-    def get_last_unapplied(self) -> Migration | None:
-        return next((m for m in reversed(self._migrations.values()) if not m.is_applied), None)
 
     def clear(self) -> None:
         self._migrations.clear()
