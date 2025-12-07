@@ -23,11 +23,22 @@ class DialectCompiler(ABC):
         self.dialect = engine.dialect
 
     def add_column(self, table_name: str, column: Column) -> DDLElement:
-        col_expr = CreateColumn(column).compile(dialect=self.dialect)
-        return DDL(f"ALTER TABLE {table_name} ADD COLUMN {str(col_expr)}")
+        return DDL(
+            "ALTER TABLE %(table)s ADD COLUMN %(column)s",
+            context={
+                "table": table_name,
+                "column": CreateColumn(column).compile(dialect=self.dialect)
+            }
+        )
 
     def drop_column(self, table_name: str, column_name: str) -> DDLElement:
-        return DDL(f"ALTER TABLE {table_name} DROP COLUMN {column_name}")
+        return DDL(
+            "ALTER TABLE %(table)s DROP COLUMN %(column_name)",
+            context={
+                "table": table_name,
+                "column_name": column_name
+            }
+        )
 
     @abstractmethod
     def rename_column(self, table_name: str, old_name: str, new_name: str) -> DDLElement:
@@ -42,7 +53,7 @@ class DialectCompiler(ABC):
         nullable: bool | None = None,
         default: Any = None,
         server_default: Any = None,
-    ) -> DDLElement | list[DDLElement]:
+    ) -> list[DDLElement]:
         pass
 
     def create_index(
@@ -72,8 +83,8 @@ class DialectCompiler(ABC):
 
         return DropIndex(index)
 
-    def execute_ddl(self, connection, ddl: DDLElement | list[DDLElement]) -> None:
-        def execute(s):
+    def execute(self, connection, ddl: DDLElement | list[DDLElement]) -> None:
+        def _execute(s):
             sql = str(ddl.compile(dialect=self.dialect))
             connection.exec_driver_sql(sql)
 
