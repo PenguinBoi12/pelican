@@ -23,6 +23,7 @@ class Migration:
     revision: int
     up: Callable[..., Any] | None = None
     down: Callable[..., Any] | None = None
+    is_applied: bool = False
 
     @property
     def display_name(self) -> str:
@@ -31,12 +32,6 @@ class Migration:
     @property
     def file_name(self) -> str:
         return f"{self.revision}_{self.name}.py"
-
-    def has_up(self) -> bool:
-        return self.up is not None
-
-    def has_down(self) -> bool:
-        return self.down is not None
 
 
 class MigrationRegistry:
@@ -51,11 +46,12 @@ class MigrationRegistry:
         if not self._migrations.get(revision):
             self._migrations[revision] = migration
 
-        if migration.has_up():
+        if migration.up:
             raise DuplicateMigrationError(
                 f"'up' migration already registered for revision {revision}"
             )
         migration.up = func
+        self._order_migrations()
 
     def register_down(self, revision: int, name: str, func: F) -> None:
         migration = self._migrations.get(
@@ -65,20 +61,32 @@ class MigrationRegistry:
         if not self._migrations.get(revision):
             self._migrations[revision] = migration
 
-        if migration.has_down():
+        if migration.down:
             raise DuplicateMigrationError(
                 f"'down' migration already registered for revision {revision}"
             )
         migration.down = func
+        self._order_migrations()
 
     def get_all(self) -> list[Migration]:
         return sorted(self._migrations.values(), key=lambda m: m.revision)
 
-    def get(self, revision: int | None) -> Migration | None:
-        return self._migrations.get(revision or -1)
+    def get(self, revision: int) -> Migration | None:
+        return self._migrations.get(revision)
+
+    def get_last_applied(self) -> Migration | None:
+        return next((m for m in reversed(self._migrations.values()) if m.is_applied), None)
+
+    def get_last_unapplied(self) -> Migration | None:
+        return next((m for m in reversed(self._migrations.values()) if not m.is_applied), None)
 
     def clear(self) -> None:
         self._migrations.clear()
+
+    def _order_migrations(self):
+        self._migrations = dict(
+            sorted(self._migrations.items(), key=lambda item: item[0])
+        )
 
     def __len__(self) -> int:
         return len(self.get_all())

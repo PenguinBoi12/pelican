@@ -58,6 +58,7 @@ class MigrationRunner:
             raise ValueError("Migration has no upgrade function")
 
         migration.up()
+        migration.is_applied = True
         self._record_applied(migration.revision)
 
     def downgrade(self, migration: Migration) -> None:
@@ -65,6 +66,7 @@ class MigrationRunner:
             raise ValueError("Migration has no downgrade function")
 
         migration.down()
+        migration.is_applied = False
         self._record_unapplied(migration.revision)
 
     def _record_applied(self, version: int) -> None:

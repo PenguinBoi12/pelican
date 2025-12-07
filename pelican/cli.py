@@ -24,8 +24,8 @@ def up(revision: int | None) -> None:
     """Upgrade the migration to the given or latest revision."""
     loader.load_migrations()
 
-    if migration := registry.get(revision):
-        runner.upgrade(migration)
+    migration = registry.get(revision) if revision else registry.get_last_unapplied()
+    runner.upgrade(migration)
 
 
 @cli.command()
@@ -34,9 +34,8 @@ def down(revision: int | None) -> None:
     """Downgrade the migration to the given or latest revision."""
     loader.load_migrations()
 
-    if migration := registry.get(revision):
-        runner.downgrade(migration)
-
+    migration = registry.get(revision) if revision else registry.get_last_applied()
+    runner.upgrade(migration)
 
 @cli.command()
 def status() -> None:
