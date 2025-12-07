@@ -2,11 +2,18 @@ from os import environ
 from dotenv import load_dotenv
 from datetime import datetime
 from typing import Iterator
-from sqlalchemy.engine import Engine
-from sqlalchemy.orm import Session, sessionmaker
+
 from sqlalchemy import inspect, create_engine, MetaData
-from sqlmodel import SQLModel, Session as SQLModelSession, Field, select
-from pelican.migration import Migration
+from sqlalchemy.engine import Engine
+from sqlmodel import SQLModel, Session, Field, select
+
+from .migration import Migration
+from .compilers import DialectCompiler, SQLiteCompiler
+
+
+_DIALECT_COMPILERS: dict[str, type[DialectCompiler]] = {
+    "sqlite": SQLiteCompiler,
+}
 
 
 class _SchemaMigration(SQLModel, table=True):
@@ -20,66 +27,56 @@ class MigrationRunner:
     def __init__(self) -> None:
         load_dotenv(".env")
 
-        self._engine: Engine | None = None
-        self._metadata: MetaData | None = None
-        self._session: Session | None = None
-        self._database_url: str | None = None
+        self.database_url: str = environ.get("DATABASE_URL", "sqlite:///database.db")
+        self.engine: Engine = create_engine(self.database_url)
+        self.metadata: MetaData = SQLModel.metadata
 
-        self.ensure_version_table_exists()
+        dialect_name = self.engine.dialect.name
+        compiler_cls = _DIALECT_COMPILERS.get(dialect_name)
 
-    @property
-    def database_url(self) -> str:
-        if not self._database_url:
-            self._database_url = environ.get("DATABASE_URL", "sqlite:///database.db")
-        return self._database_url
+        if not compiler_cls:
+            raise ValueError(
+                f"Unsupported dialect: {dialect_name}. "
+                f"Supported dialects: {', '.join(_DIALECT_COMPILERS.keys())}"
+            )
+        self.compiler = compiler_cls(self.engine)
 
-    @property
-    def engine(self) -> Engine:
-        if not self._engine:
-            self._engine = create_engine(self.database_url)
-        return self._engine
+        self._ensure_version_table_exists()
 
-    @property
-    def metadata(self) -> MetaData:
-        if not self._metadata:
-            self._metadata = MetaData()
-        return self._metadata
-
-    @property
-    def session(self) -> Session:
-        if not self._session:
-            session_maker: sessionmaker = sessionmaker(bind=self._engine)
-            self._session = session_maker()
-        return self._session
-
-    def ensure_version_table_exists(self) -> None:
+    def _ensure_version_table_exists(self) -> None:
         inspector = inspect(self.engine)
         if "pelican_migration" not in inspector.get_table_names():
-            SQLModel.metadata.create_all(self.engine)
+            _SchemaMigration.metadata.create_all(self.engine)
 
     def get_applied_versions(self) -> Iterator[int]:
-        with SQLModelSession(self.engine) as s:
+        with Session(self.engine) as s:
             for version in s.exec(select(_SchemaMigration.version)):
                 yield int(version)
 
     def upgrade(self, migration: Migration) -> None:
         if not migration.up:
-            raise ValueError("Migration is not an upgrade")
+            raise ValueError("Migration has no upgrade function")
 
         migration.up()
         self._record_applied(migration.revision)
 
     def downgrade(self, migration: Migration) -> None:
         if not migration.down:
-            raise ValueError("Migration is not an upgrade")
+            raise ValueError("Migration has no downgrade function")
 
         migration.down()
         self._record_unapplied(migration.revision)
 
     def _record_applied(self, version: int) -> None:
-        self.session.add(_SchemaMigration(version=version))
-        self.session.commit()
+        with Session(self.engine) as session:
+            session.add(_SchemaMigration(version=version))
+            session.commit()
 
     def _record_unapplied(self, version: int) -> None:
-        self.session.query(_SchemaMigration).filter_by(version=version).delete()
-        self.session.commit()
+        with Session(self.engine) as session:
+            statement = select(_SchemaMigration).where(_SchemaMigration.version == version)
+            results = session.exec(statement)
+            revision = results.one()
+
+            session.delete(revision)
+            session.commit()
