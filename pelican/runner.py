@@ -92,8 +92,6 @@ class MigrationRunner:
 
         self.execute(compiled_ddls)
 
-
-
     def _ensure_version_table_exists(self) -> None:
         inspector = inspect(self.engine)
         if "pelican_migration" not in inspector.get_table_names():
@@ -106,7 +104,9 @@ class MigrationRunner:
 
     def _record_unapplied(self, version: int) -> None:
         with Session(self.engine) as session:
-            statement = select(_SchemaMigration).where(_SchemaMigration.version == version)
+            statement = select(_SchemaMigration).where(
+                _SchemaMigration.version == version
+            )
             results = session.exec(statement)
             revision = results.one()
 

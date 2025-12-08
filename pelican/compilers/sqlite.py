@@ -9,9 +9,7 @@ class SQLiteCompiler(DialectCompiler):
     def rename_column(
         self, table_name: str, old_name: str, new_name: str
     ) -> Iterable[DDLElement]:
-        return [DDL(
-            f"ALTER TABLE {table_name} RENAME COLUMN {old_name} TO {new_name}"
-        )]
+        return [DDL(f"ALTER TABLE {table_name} RENAME COLUMN {old_name} TO {new_name}")]
 
     def alter_column(
         self,

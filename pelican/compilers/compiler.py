@@ -31,7 +31,9 @@ class DialectCompiler(ABC):
         return [text(sql)]
 
     @abstractmethod
-    def rename_column(self, table_name: str, old_name: str, new_name: str) -> Iterable[DDLElement]:
+    def rename_column(
+        self, table_name: str, old_name: str, new_name: str
+    ) -> Iterable[DDLElement]:
         pass
 
     @abstractmethod
@@ -55,10 +57,7 @@ class DialectCompiler(ABC):
     ) -> Iterable[DDLElement]:
         metadata = MetaData()
         table = Table(
-            table_name,
-            metadata,
-            autoload_with=self.engine,
-            extend_existing=True
+            table_name, metadata, autoload_with=self.engine, extend_existing=True
         )
 
         columns = [table.c[col_name] for col_name in column_names]
