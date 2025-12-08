@@ -24,14 +24,15 @@ def up(revision: int | None) -> None:
     """Upgrade the migration to the given or latest revision."""
     loader.load_migrations()
 
-    if revision is not None:
-        migrations = [registry.get(revision)]
+    if revision:
+        migration = registry.get(revision)
+        migrations = [migration] if migration else []
     else:
         applied = runner.get_applied_versions()
         migrations = [m for m in registry.get_all() if m.revision not in applied]
 
-    if migrations is None:
-        click.echo("No migration(s) to apply.")
+    if not migrations:
+        echo("No migration(s) to apply.")
         return
 
     for migration in migrations:
@@ -44,18 +45,14 @@ def down(revision: int | None) -> None:
     """Downgrade the migration to the given or latest revision."""
     loader.load_migrations()
 
-    if revision is not None:
-        migration = registry.get(revision)
-    else:
+    if not revision:
         applied = runner.get_applied_versions()
-        last_revision = max(applied)
-        migration = registry.get(last_revision)
+        revision = max(applied)
 
-    if migration is None:
-        click.echo("Migration not found.")
-        return
-
-    runner.downgrade(migration)
+    if revision and (migration := registry.get(revision)):
+        runner.downgrade(migration)
+    else:
+        echo("Migration not found.")
 
 
 @cli.command()

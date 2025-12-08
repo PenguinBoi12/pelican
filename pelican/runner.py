@@ -6,6 +6,7 @@ from typing import Union, Iterator, Iterable, TYPE_CHECKING
 from sqlalchemy import inspect, create_engine, MetaData
 from sqlalchemy.engine import Engine
 from sqlalchemy.sql import Executable, DDLElement
+from sqlalchemy.sql.elements import TextClause
 from sqlmodel import SQLModel, Session, Field, select
 
 from .migration import Migration
@@ -66,18 +67,19 @@ class MigrationRunner:
         migration.down()
         self._record_unapplied(migration.revision)
 
-    def execute(self, ddls: Iterable[Union[str, Executable]]) -> None:
+    def execute(self, ddls: Iterable[Union[str, Executable, TextClause]]) -> None:
         compiled_statements: list[tuple[str, dict]] = []
 
         for ddl in ddls:
             if isinstance(ddl, str):
                 compiled_statements.append((ddl, {}))
-                continue
-
-            compiled = ddl.compile(dialect=self.engine.dialect)
-            sql = compiled.string
-            params = compiled.params or {}
-            compiled_statements.append((sql, params))
+            elif isinstance(ddl, (DDLElement, TextClause)):
+                compiled = ddl.compile(dialect=self.engine.dialect)
+                sql = compiled.string
+                params = compiled.params or {}
+                compiled_statements.append((sql, params))
+            else:
+                raise TypeError(f"Unsupported DDL type: {type(ddl)}")
 
         with self.engine.begin() as conn:
             for sql, params in compiled_statements:

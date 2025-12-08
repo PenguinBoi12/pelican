@@ -3,8 +3,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from contextlib import contextmanager
 from sqlalchemy.types import TypeEngine
-from sqlalchemy.schema import DDLElement
-from sqlalchemy.sql import func
+from sqlalchemy.sql import Executable, func
 from sqlalchemy import (
     Table,
     Column,
@@ -28,7 +27,7 @@ class Operation(ABC):
     table_name: str
 
     @abstractmethod
-    def compile(self, compiler: DialectCompiler) -> Iterable[DDLElement]:
+    def compile(self, compiler: DialectCompiler) -> Iterable[Executable]:
         pass
 
 
@@ -36,7 +35,7 @@ class Operation(ABC):
 class AddColumn(Operation):
     column: Column
 
-    def compile(self, compiler: DialectCompiler) -> Iterable[DDLElement]:
+    def compile(self, compiler: DialectCompiler) -> Iterable[Executable]:
         return compiler.add_column(self.table_name, self.column)
 
 
@@ -44,7 +43,7 @@ class AddColumn(Operation):
 class DropColumn(Operation):
     column_name: str
 
-    def compile(self, compiler: DialectCompiler) -> Iterable[DDLElement]:
+    def compile(self, compiler: DialectCompiler) -> Iterable[Executable]:
         return compiler.drop_column(self.table_name, self.column_name)
 
 
@@ -53,7 +52,7 @@ class RenameColumn(Operation):
     old_name: str
     new_name: str
 
-    def compile(self, compiler: DialectCompiler) -> Iterable[DDLElement]:
+    def compile(self, compiler: DialectCompiler) -> Iterable[Executable]:
         return compiler.rename_column(self.table_name, self.old_name, self.new_name)
 
 
@@ -65,7 +64,7 @@ class AlterColumn(Operation):
     default: Any = None
     server_default: Any = None
 
-    def compile(self, compiler: DialectCompiler) -> Iterable[DDLElement]:
+    def compile(self, compiler: DialectCompiler) -> Iterable[Executable]:
         return compiler.alter_column(
             self.table_name,
             self.column_name,
@@ -82,7 +81,7 @@ class CreateIndex(Operation):
     column_names: list[str]
     unique: bool
 
-    def compile(self, compiler: DialectCompiler) -> Iterable[DDLElement]:
+    def compile(self, compiler: DialectCompiler) -> Iterable[Executable]:
         return compiler.create_index(
             self.table_name, self.index_name, self.column_names, self.unique
         )
@@ -92,7 +91,7 @@ class CreateIndex(Operation):
 class RemoveIndex(Operation):
     index_name: str
 
-    def compile(self, compiler: DialectCompiler) -> Iterable[DDLElement]:
+    def compile(self, compiler: DialectCompiler) -> Iterable[Executable]:
         return compiler.drop_index(self.table_name, self.index_name)
 
 
@@ -190,14 +189,13 @@ class TableBuilder:
 
     def remove_index(
         self, column_names: list[str] | None = None, *, name: str | None = None
-    ):
+    ) -> None:
         if not self._is_existing_table:
             raise ValueError("remove_index can only be used on existing table")
 
-        if not column_names and not name:
-            raise ValueError("At least one column name is required for an index")
-
-        if name is None:
+        if not name:
+            if not column_names:
+                raise ValueError("At least one column name is required for an index")
             name = f"{self.table_name}_{'_'.join(column_names)}_idx"
 
         self.operations.append(RemoveIndex(self.table_name, name))

@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Any, Iterable
 from sqlalchemy.types import TypeEngine
-from sqlalchemy.sql import DDLElement
+from sqlalchemy.engine import Engine
+from sqlalchemy.sql import Executable, DDLElement
 from sqlalchemy.schema import (
     CreateColumn,
     CreateIndex,
@@ -18,15 +19,15 @@ from sqlalchemy import (
 
 
 class DialectCompiler(ABC):
-    def __init__(self, engine):
+    def __init__(self, engine: Engine) -> None:
         self.engine = engine
         self.dialect = engine.dialect
 
-    def add_column(self, table_name: str, column: Column) -> Iterable[DDLElement]:
+    def add_column(self, table_name: str, column: Column) -> Iterable[Executable]:
         sql = f"ALTER TABLE {table_name} ADD COLUMN {CreateColumn(column).compile(dialect=self.dialect)}"
         return [text(sql)]
 
-    def drop_column(self, table_name: str, column_name: str) -> Iterable[DDLElement]:
+    def drop_column(self, table_name: str, column_name: str) -> Iterable[Executable]:
         sql = f"ALTER TABLE {table_name} DROP COLUMN {column_name}"
         return [text(sql)]
 

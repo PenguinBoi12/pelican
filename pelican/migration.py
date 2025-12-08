@@ -50,7 +50,6 @@ class MigrationRegistry:
                 f"'up' migration already registered for revision {revision}"
             )
         migration.up = func
-        self._order_migrations()
 
     def register_down(self, revision: int, name: str, func: F) -> None:
         migration = self._migrations.get(
@@ -65,7 +64,6 @@ class MigrationRegistry:
                 f"'down' migration already registered for revision {revision}"
             )
         migration.down = func
-        self._order_migrations()
 
     def get_all(self) -> list[Migration]:
         return sorted(self._migrations.values(), key=lambda m: m.revision)
@@ -75,11 +73,6 @@ class MigrationRegistry:
 
     def clear(self) -> None:
         self._migrations.clear()
-
-    def _order_migrations(self):
-        self._migrations = dict(
-            sorted(self._migrations.items(), key=lambda item: item[0])
-        )
 
     def __len__(self) -> int:
         return len(self.get_all())
