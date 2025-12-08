@@ -29,10 +29,10 @@ def test_decorator_registers_migration(
     assert migration.revision == 1
     assert migration.name == "test_migration"
     assert getattr(migration, attr) is migration_func
-    assert getattr(migration, f"has_{attr}")()
+    assert getattr(migration, attr)
 
     opposite_attr = "down" if attr == "up" else "up"
-    assert not getattr(migration, f"has_{opposite_attr}")()
+    assert not getattr(migration, opposite_attr)
 
 
 @pytest.mark.parametrize("decorator,direction", [(up, "up"), (down, "down")])
