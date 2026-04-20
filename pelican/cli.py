@@ -1,14 +1,30 @@
 import sys
+from os import environ
+from pathlib import Path
 
 from click import group, argument, echo, style
 from pelican import registry, loader, runner
 
 
+def _warn_if_no_db_config() -> None:
+    if not environ.get("DATABASE_URL") and not Path(".env").exists():
+        echo(
+            style("Warning:", fg="yellow")
+            + " DATABASE_URL is not set and no .env file found."
+            + " Using sqlite:///database.db by default.",
+            err=True,
+        )
+
+
 def _load_or_exit() -> None:
+    _warn_if_no_db_config()
     try:
         loader.load_migrations()
     except FileNotFoundError:
-        echo("No migrations directory found. Run 'pelican generate <name>' to create your first migration.")
+        echo(
+            "No migrations directory found. "
+            "Run 'pelican generate <name>' to create your first migration."
+        )
         sys.exit(0)
 
 
@@ -24,7 +40,13 @@ def generate(name: str) -> None:
     """Generate a new migration with the given name"""
     from .generator import generate_migration
 
+    migrations_dir = Path("db/migrations")
+    dir_existed = migrations_dir.exists()
+
     migration_file = generate_migration(name=name)
+
+    if not dir_existed:
+        echo(f"Created {migrations_dir}/")
     echo(f"Generated {migration_file}")
 
 
@@ -54,6 +76,7 @@ def up(revision: int | None) -> None:
 
     for migration in migrations:
         runner.upgrade(migration)
+        echo(f"  {style('✓', fg='green')} Applied {migration.revision} {migration.display_name}")
 
 
 @cli.command()
@@ -75,6 +98,7 @@ def down(revision: int | None) -> None:
         sys.exit(1)
 
     runner.downgrade(migration)
+    echo(f"  {style('✓', fg='green')} Rolled back {migration.revision} {migration.display_name}")
 
 
 @cli.command()

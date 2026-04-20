@@ -26,6 +26,20 @@ class _AppliedRunner:
         return iter(self._applied)
 
 
+class _SuccessRunner:
+    def __init__(self, applied: list[int] | None = None) -> None:
+        self._applied = applied or []
+
+    def get_applied_versions(self) -> Iterator[int]:
+        return iter(self._applied)
+
+    def upgrade(self, migration: Migration) -> None:
+        pass
+
+    def downgrade(self, migration: Migration) -> None:
+        pass
+
+
 class _EmptyRegistry:
     def get(self, revision: int) -> None:
         return None
@@ -93,6 +107,26 @@ def test_up__with_already_applied_revision__expect_message(
 
     assert result.exit_code == 0
     assert "already applied" in result.output
+
+
+def test_up__expect_applied_output(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(cli_module, "runner", _SuccessRunner(applied=[]))
+    monkeypatch.setattr(cli_module, "registry", _registry_with(1))
+
+    result = CliRunner().invoke(cli, ["up"])
+
+    assert result.exit_code == 0
+    assert "Applied" in result.output
+
+
+def test_down__expect_rolled_back_output(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(cli_module, "runner", _SuccessRunner(applied=[1]))
+    monkeypatch.setattr(cli_module, "registry", _registry_with(1))
+
+    result = CliRunner().invoke(cli, ["down"])
+
+    assert result.exit_code == 0
+    assert "Rolled back" in result.output
 
 
 def test_status__with_mixed_migrations__expect_correct_symbols(
