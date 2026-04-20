@@ -4,7 +4,7 @@
 
 [![Tests](https://github.com/PenguinBoi12/pelican/actions/workflows/tests.yml/badge.svg)](https://github.com/PenguinBoi12/pelican/actions/workflows/tests.yml)
 [![CodeQL Advanced](https://github.com/PenguinBoi12/pelican/actions/workflows/codeql.yml/badge.svg)](https://github.com/PenguinBoi12/pelican/actions/workflows/codeql.yml)
-![PyPI - Version](https://img.shields.io/pypi/v/pelican-migration)
+[![PyPI - Version](https://img.shields.io/pypi/v/pelican-migration)](https://pypi.org/project/pelican-migration/)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/PenguinBoi12/pelican/badge)](https://securityscorecards.dev/viewer/?uri=github.com/PenguinBoi12/pelican)
 
 **[Documentation](https://penguinboi12.github.io/pelican)** •
