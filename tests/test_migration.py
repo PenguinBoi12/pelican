@@ -13,7 +13,7 @@ from pelican.migration import (
 
 
 @pytest.mark.parametrize("decorator,attr", [(up, "up"), (down, "down")])
-def test_decorator_registers_migration(
+def test_register_decorator__expect_migration_registered(
     registry: MigrationRegistry,
     migration_func: Callable,
     decorator: Callable,
@@ -36,7 +36,7 @@ def test_decorator_registers_migration(
 
 
 @pytest.mark.parametrize("decorator,direction", [(up, "up"), (down, "down")])
-def test_decorator_duplicate_registration_raises_error(
+def test_register_decorator__with_duplicate__expect_error(
     migration_func: Callable,
     decorator: Callable,
     direction: str,
@@ -49,7 +49,7 @@ def test_decorator_duplicate_registration_raises_error(
         decorator(migration_func)
 
 
-def test_decorator_invalid_filename_raises_error(tmp_path: Path) -> None:
+def test_register_decorator__with_invalid_filename__expect_error(tmp_path: Path) -> None:
     invalid_file = tmp_path / "invalid_migration_name.py"
 
     func = lambda: None
@@ -68,7 +68,7 @@ def test_decorator_invalid_filename_raises_error(tmp_path: Path) -> None:
         ("create_users_and_posts_tables", "Create users and posts tables"),
     ],
 )
-def test_migration_display_name(name: str, expected_display: str) -> None:
+def test_display_name__expect_formatted_string(name: str, expected_display: str) -> None:
     migration = Migration(name=name, revision=1)
     assert migration.display_name == expected_display
 
@@ -81,12 +81,14 @@ def test_migration_display_name(name: str, expected_display: str) -> None:
         (0, "initial", "0_initial.py"),
     ],
 )
-def test_migration_file_name(revision: int, name: str, expected_file: str) -> None:
+def test_file_name__expect_formatted_string(
+    revision: int, name: str, expected_file: str
+) -> None:
     migration = Migration(name=name, revision=revision)
     assert migration.file_name == expected_file
 
 
-def test_registry_iter_returns_sorted_by_revision(registry: MigrationRegistry) -> None:
+def test_registry_iter__expect_sorted_by_revision(registry: MigrationRegistry) -> None:
     for revision, name in [(3, "third"), (1, "first"), (2, "second")]:
         registry.register_up(revision, name, lambda: None)
 

@@ -55,8 +55,8 @@ class TableBuilder:
 
     def alter(self, name: str, **kwargs: Any) -> None:
         if not self._is_existing_table:
-            raise ValueError("remove_column can only be used on existing table")
-        raise NotImplementedError()
+            raise ValueError("alter can only be used on existing table")
+        self.operations.append(AlterColumn(self.table_name, name, **kwargs))
 
     def rename(self, old_name: str, new_name: str) -> None:
         if not self._is_existing_table:

@@ -19,7 +19,7 @@ def generate(name: str) -> None:
 
 
 @cli.command()
-@argument("revision", nargs=1, default=None, type=int)
+@argument("revision", nargs=1, default=None, required=False, type=int)
 def up(revision: int | None) -> None:
     """Upgrade the migration to the given or latest revision."""
     loader.load_migrations()
@@ -40,13 +40,16 @@ def up(revision: int | None) -> None:
 
 
 @cli.command()
-@argument("revision", nargs=1, default=None, type=int)
+@argument("revision", nargs=1, default=None, required=False, type=int)
 def down(revision: int | None) -> None:
     """Downgrade the migration to the given or latest revision."""
     loader.load_migrations()
 
     if not revision:
-        applied = runner.get_applied_versions()
+        applied = list(runner.get_applied_versions())
+        if not applied:
+            echo("No migrations have been applied.")
+            return
         revision = max(applied)
 
     if revision and (migration := registry.get(revision)):
