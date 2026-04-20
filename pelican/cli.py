@@ -4,6 +4,14 @@ from click import group, argument, echo, style
 from pelican import registry, loader, runner
 
 
+def _load_or_exit() -> None:
+    try:
+        loader.load_migrations()
+    except FileNotFoundError:
+        echo("No migrations directory found. Run 'pelican generate <name>' to create your first migration.")
+        sys.exit(0)
+
+
 @group()
 def cli() -> None:
     """Pelican - Modern database migrations for SQLAlchemy"""
@@ -24,7 +32,7 @@ def generate(name: str) -> None:
 @argument("revision", nargs=1, default=None, required=False, type=int)
 def up(revision: int | None) -> None:
     """Upgrade the migration to the given or latest revision."""
-    loader.load_migrations()
+    _load_or_exit()
 
     if revision:
         migration = registry.get(revision)
@@ -52,7 +60,7 @@ def up(revision: int | None) -> None:
 @argument("revision", nargs=1, default=None, required=False, type=int)
 def down(revision: int | None) -> None:
     """Downgrade the migration to the given or latest revision."""
-    loader.load_migrations()
+    _load_or_exit()
 
     if not revision:
         applied = list(runner.get_applied_versions())
@@ -72,7 +80,7 @@ def down(revision: int | None) -> None:
 @cli.command()
 def status() -> None:
     """Display the migration status."""
-    loader.load_migrations()
+    _load_or_exit()
     applied = set(runner.get_applied_versions())
 
     echo("\nMigration Status")

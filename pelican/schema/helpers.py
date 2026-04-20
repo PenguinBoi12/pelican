@@ -61,12 +61,12 @@ class TableBuilder:
 
     def rename(self, old_name: str, new_name: str) -> None:
         if not self._is_existing_table:
-            raise ValueError("remove_column can only be used on existing table")
+            raise ValueError("rename can only be used on existing table")
         self.operations.append(RenameColumn(self.table_name, old_name, new_name))
 
     def drop(self, name: str) -> None:
         if not self._is_existing_table:
-            raise ValueError("remove_column can only be used on existing table")
+            raise ValueError("drop can only be used on existing table")
         self.operations.append(DropColumn(self.table_name, name))
 
     def integer(self, name: str, *args: Any, **kwargs: Any) -> None:
@@ -168,7 +168,7 @@ def create_table(table_name: str, primary_key: bool = True) -> Iterator[TableBui
 
 @contextmanager
 def change_table(table_name: str) -> Iterator[TableBuilder]:
-    """Create a new table
+    """Modify an existing table
 
     ## Example
 
