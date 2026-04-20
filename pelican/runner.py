@@ -10,7 +10,7 @@ from sqlalchemy.sql.elements import TextClause
 from sqlmodel import SQLModel, Session, Field, select
 
 from .migration import Migration
-from .compilers import DialectCompiler, SQLiteCompiler
+from .compilers import DialectCompiler, PostgreSQLCompiler, SQLiteCompiler
 
 if TYPE_CHECKING:
     from .operations import Operation
@@ -18,6 +18,7 @@ if TYPE_CHECKING:
 
 _DIALECT_COMPILERS: dict[str, type[DialectCompiler]] = {
     "sqlite": SQLiteCompiler,
+    "postgresql": PostgreSQLCompiler,
 }
 
 
