@@ -1,16 +1,18 @@
 [build-system]
-requires = ["setuptools>=64", "setuptools_scm>=8"]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
 
 [project]
 name = "pelican-migration"
-version = "1.0.0-alpha"
+description = "A modern migration tool for SQLAlchemy."
+dynamic = ["version"]
 authors = [
     { name="Simon Roy", email="simon.roy1211@gmail.com" },
 ]
 maintainers = [
     { name="Simon Roy", email="simon.roy1211@gmail.com" },
 ]
-description = "A modern migration tool for SQLAlchemy."
+keywords = ["sqlalchemy", "migration", "database", "schema", "alembic", "orm", "cli", "postgresql", "sqlite"]
 readme = "README.md"
 license = { file="LICENSE" }
 requires-python = ">=3.12"
@@ -36,8 +38,9 @@ doc = [
 ]
 
 [project.urls]
-"Source" = "https://github.com/PenguinBoi12/pelican"
-"Issues" = "https://github.com/PenguinBoi12/pelican/issues"
+Source = "https://github.com/PenguinBoi12/pelican"
+Repository = "https://github.com/PenguinBoi12/pelican.git"
+Issues = "https://github.com/PenguinBoi12/pelican/issues"
 
 [project.scripts]
 pelican = "pelican.cli:cli"
@@ -48,3 +51,21 @@ license-files = []
 
 [tool.mypy]
 exclude = ['pelican/templates']
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+
+[tool.hatch.build.targets.wheel]
+packages = ["pelican"]
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "pelican/_version.py"
+
+[tool.coverage.run]
+omit = [
+    "pelican/__init__.py",
+]
