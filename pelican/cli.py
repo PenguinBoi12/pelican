@@ -1,3 +1,5 @@
+import sys
+
 from click import group, argument, echo, style
 from pelican import registry, loader, runner
 
@@ -26,9 +28,16 @@ def up(revision: int | None) -> None:
 
     if revision:
         migration = registry.get(revision)
-        migrations = [migration] if migration else []
+        if not migration:
+            echo(f"Migration {revision} not found.")
+            sys.exit(1)
+        applied = list(runner.get_applied_versions())
+        if migration.revision in applied:
+            echo(f"Migration {revision} is already applied.")
+            return
+        migrations = [migration]
     else:
-        applied = runner.get_applied_versions()
+        applied = list(runner.get_applied_versions())
         migrations = [m for m in registry.get_all() if m.revision not in applied]
 
     if not migrations:
@@ -52,10 +61,12 @@ def down(revision: int | None) -> None:
             return
         revision = max(applied)
 
-    if revision and (migration := registry.get(revision)):
-        runner.downgrade(migration)
-    else:
-        echo("Migration not found.")
+    migration = registry.get(revision)
+    if not migration:
+        echo(f"Migration {revision} not found.")
+        sys.exit(1)
+
+    runner.downgrade(migration)
 
 
 @cli.command()
