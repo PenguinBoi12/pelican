@@ -2,9 +2,12 @@ from pathlib import Path
 
 import pytest
 
-from pelican.loader import discover_migration_files, load_migration_file, load_migrations
+from pelican.loader import (
+    discover_migration_files,
+    load_migration_file,
+    load_migrations,
+)
 from pelican.migration import MigrationRegistry
-
 
 _MIGRATION_TEMPLATE = """\
 from pelican.migration import up, down
@@ -87,7 +90,9 @@ def test_load_migrations__expect_registry_cleared_before_load(tmp_path, registry
     assert registry.get(1) is not None
 
 
-def test_load_migrations__with_empty_directory__expect_empty_registry(tmp_path, registry):
+def test_load_migrations__with_empty_directory__expect_empty_registry(
+    tmp_path, registry
+):
     load_migrations(tmp_path)
 
     assert len(registry) == 0

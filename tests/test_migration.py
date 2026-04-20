@@ -49,7 +49,9 @@ def test_register_decorator__with_duplicate__expect_error(
         decorator(migration_func)
 
 
-def test_register_decorator__with_invalid_filename__expect_error(tmp_path: Path) -> None:
+def test_register_decorator__with_invalid_filename__expect_error(
+    tmp_path: Path,
+) -> None:
     invalid_file = tmp_path / "invalid_migration_name.py"
 
     func = lambda: None
@@ -68,7 +70,9 @@ def test_register_decorator__with_invalid_filename__expect_error(tmp_path: Path)
         ("create_users_and_posts_tables", "Create users and posts tables"),
     ],
 )
-def test_display_name__expect_formatted_string(name: str, expected_display: str) -> None:
+def test_display_name__expect_formatted_string(
+    name: str, expected_display: str
+) -> None:
     migration = Migration(name=name, revision=1)
     assert migration.display_name == expected_display
 

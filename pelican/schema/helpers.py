@@ -102,7 +102,9 @@ class TableBuilder:
             Column(
                 f"{model_name}_id",
                 Integer,
-                ForeignKey(f"{inflection.pluralize(model_name)}.id", ondelete=on_delete),
+                ForeignKey(
+                    f"{inflection.pluralize(model_name)}.id", ondelete=on_delete
+                ),
                 **kwargs,
             )
         )

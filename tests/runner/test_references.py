@@ -4,13 +4,16 @@ from sqlalchemy import inspect
 from pelican import create_table
 
 
-@pytest.mark.parametrize("model_name,expected_table", [
-    ("user", "users"),
-    ("category", "categories"),
-    ("child", "children"),
-    ("person", "people"),
-    ("sheep", "sheep"),
-])
+@pytest.mark.parametrize(
+    "model_name,expected_table",
+    [
+        ("user", "users"),
+        ("category", "categories"),
+        ("child", "children"),
+        ("person", "people"),
+        ("sheep", "sheep"),
+    ],
+)
 def test_references__with_model_name__expect_fk_to_plural_table(
     model_name, expected_table, db_runner
 ):

@@ -2,7 +2,6 @@ from datetime import datetime
 from pathlib import Path
 from .migration import Migration
 
-
 TEMPLATE_DIR: Path = Path(__file__).parent / "templates"
 
 

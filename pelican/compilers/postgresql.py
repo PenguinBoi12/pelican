@@ -27,12 +27,16 @@ class PostgreSQLCompiler(DialectCompiler):
         if new_type is not None:
             type_str = self.dialect.type_compiler_instance.process(new_type)
             statements.append(
-                DDL(f"ALTER TABLE {table_name} ALTER COLUMN {column_name} TYPE {type_str}")
+                DDL(
+                    f"ALTER TABLE {table_name} ALTER COLUMN {column_name} TYPE {type_str}"
+                )
             )
 
         if nullable is True:
             statements.append(
-                DDL(f"ALTER TABLE {table_name} ALTER COLUMN {column_name} DROP NOT NULL")
+                DDL(
+                    f"ALTER TABLE {table_name} ALTER COLUMN {column_name} DROP NOT NULL"
+                )
             )
         elif nullable is False:
             statements.append(
