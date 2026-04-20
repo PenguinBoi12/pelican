@@ -1,0 +1,82 @@
+# Pelican
+
+> A modern, minimal migration framework for SQLAlchemy
+
+[![Tests](https://github.com/PenguinBoi12/pelican/actions/workflows/tests.yml/badge.svg)](https://github.com/PenguinBoi12/pelican/actions/workflows/tests.yml)
+[![CodeQL Advanced](https://github.com/PenguinBoi12/pelican/actions/workflows/codeql.yml/badge.svg)](https://github.com/PenguinBoi12/pelican/actions/workflows/codeql.yml)
+[![PyPI - Version](https://img.shields.io/pypi/v/pelican-migration)](https://pypi.org/project/pelican-migration/)
+
+Pelican is a lightweight tool for managing database schema changes. It focuses on **readability, simplicity and clean developer experience.**
+
+## Installation
+
+```bash
+$ pip install pelican-migration
+```
+
+## Usage
+
+### Create a new migration
+
+```bash
+$ pelican generate create_spaceships
+```
+
+This creates a new file under `db/migrations/` using the default template.
+
+```python
+"""20251002014707 - Create spaceships"""
+from pelican import (
+    migration,
+    create_table,
+    change_table,
+    drop_table
+)
+
+
+@migration.up
+def upgrade():
+    with create_table('spaceships') as t:
+        t.string('name', nullable=False)
+        t.timestamps()
+        t.index(['id', 'name'])
+
+
+@migration.down
+def downgrade():
+    drop_table('spaceships')
+
+```
+
+### Apply
+
+```bash
+$ pelican up
+```
+
+Applies all pending migration. You can also supply a **revision number** to apply migrations up to a specific revision:
+
+```bash
+$ pelican up 20251002014707
+```
+
+### Rollback migration
+
+```bash
+$ pelican down
+```
+
+Rolls back the latest migrations. You can also supply a **revision number** to roll back down to a specific revision:
+
+```bash
+pelican down 20251002014707
+```
+
+## Contributing
+
+- Fork the repository.
+- Install the development dependencies.
+  ```bash
+  $ pip install -e .[dev]
+  ```
+- Open a PR with your improvements.

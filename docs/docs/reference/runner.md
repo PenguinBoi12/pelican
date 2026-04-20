@@ -1,0 +1,3 @@
+# Runner
+
+::: pelican.runner.MigrationRunner
