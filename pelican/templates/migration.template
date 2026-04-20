@@ -1,12 +1,12 @@
-# {migration_file}
+"""{migration.revision} - {migration.display_name}"""
 from pelican import migration
 
 
-@migration.up()
-def upgrade():
+@migration.up
+def upgrade() -> None:
     pass
 
 
-@migration.down()
-def downgrade():
+@migration.down
+def downgrade() -> None:
     pass

@@ -1,14 +1,21 @@
 # Pelican
 
-> A modern, minimal migration framework for SQLAlchemy
+<div align="center" markdown>
+
+*A modern, minimal migration framework for SQLAlchemy*
 
 [![Tests](https://github.com/PenguinBoi12/pelican/actions/workflows/tests.yml/badge.svg)](https://github.com/PenguinBoi12/pelican/actions/workflows/tests.yml)
 [![CodeQL Advanced](https://github.com/PenguinBoi12/pelican/actions/workflows/codeql.yml/badge.svg)](https://github.com/PenguinBoi12/pelican/actions/workflows/codeql.yml)
-![PyPI - Version](https://img.shields.io/pypi/v/pelican-migration)
+[![PyPI - Version](https://img.shields.io/pypi/v/pelican-migration)](https://pypi.org/project/pelican-migration/)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/PenguinBoi12/pelican/badge)](https://securityscorecards.dev/viewer/?uri=github.com/PenguinBoi12/pelican)
+
 
 **[Documentation](https://penguinboi12.github.io/pelican)** •
 **[Source Code](https://github.com/PenguinBoi12/pelican)**
+
+</div>
+
+---
 
 Pelican is a lightweight tool for managing database schema changes. It focuses on **readability, simplicity and clean developer experience.**
 
@@ -30,61 +37,61 @@ def downgrade():
     drop_table('spaceships')
 ```
 
-## Installation
+=== "Installation"
+    
+    Create and activate a [virtual environment](https://docs.python.org/3/library/venv.html) and install Pelican:
 
-Create and activate a [virtual environment](https://docs.python.org/3/library/venv.html) and install Pelican:
+    ```bash
+    pip install pelican-migration
+    ```
 
-```bash
-pip install pelican-migration
-```
+=== "Configuration"
 
-## Configuration
+    Pelican reads the database URL from a `DATABASE_URL` environment variable or a `.env` file in your project root:
 
-Pelican reads the database URL from a `DATABASE_URL` environment variable or a `.env` file in your project root:
+    ```
+    DATABASE_URL=postgresql://user:password@localhost/mydb
+    ```
 
-```
-DATABASE_URL=postgresql://user:password@localhost/mydb
-```
+    Supported databases: [**SQLite**](reference/compilers/#pelican.compilers.sqlite.SQLiteCompiler), [**PostgreSQL**](reference/compilers/#pelican.compilers.postgresql.PostgreSQLCompiler).
 
-Supported databases: **SQLite**, **PostgreSQL**.
+=== "Usage"
 
-## Usage
+    **Generate a migration**
 
-### Generate a migration
+    ```bash
+    pelican generate create_spaceships
+    ```
 
-```bash
-pelican generate create_spaceships
-```
+    Creates `db/migrations/<timestamp>_create_spaceships.py` from the default template.
 
-Creates `db/migrations/<timestamp>_create_spaceships.py` from the default template.
+    **Apply migrations**
 
-### Apply migrations
+    ```bash
+    pelican up          # apply all pending migrations
+    pelican up 123      # apply a specific revision
+    ```
 
-```bash
-pelican up          # apply all pending migrations
-pelican up 123      # apply a specific revision
-```
+    **Roll back**
 
-### Roll back
+    ```bash
+    pelican down        # roll back the latest applied migration
+    pelican down 123    # roll back a specific revision
+    ```
 
-```bash
-pelican down        # roll back the latest applied migration
-pelican down 123    # roll back a specific revision
-```
+    **Check status**
 
-### Check status
+    ```bash
+    pelican status
+    ```
 
-```bash
-pelican status
-```
-
-```
-Migration Status
-------------------------------
-✓ 20251001120000 Create users
-✓ 20251002014707 Create spaceships
-○ 20251003090000 Add crew manifest
-```
+    ```
+    Migration Status
+    ------------------------------
+    ✓ 20251001120000 Create users
+    ✓ 20251002014707 Create spaceships
+    ○ 20251003090000 Add crew manifest
+    ```
 
 ## Schema DSL
 

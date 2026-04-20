@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Callable, TypeVar, Any
+from typing import Any, Callable, TypeVar, Iterator
 from dataclasses import dataclass
 
 F = TypeVar("F", bound=Callable[..., Any])
@@ -7,12 +7,6 @@ F = TypeVar("F", bound=Callable[..., Any])
 
 class MigrationError(Exception):
     """Base exception for migration errors."""
-
-    pass
-
-
-class MigrationNotFoundError(MigrationError):
-    """Raised when a migration revision is not found."""
 
     pass
 
@@ -25,8 +19,8 @@ class DuplicateMigrationError(MigrationError):
 
 @dataclass
 class Migration:
-    revision: int
     name: str
+    revision: int
     up: Callable[..., Any] | None = None
     down: Callable[..., Any] | None = None
 
@@ -34,11 +28,9 @@ class Migration:
     def display_name(self) -> str:
         return self.name.replace("_", " ").capitalize()
 
-    def has_up(self) -> bool:
-        return self.up is not None
-
-    def has_down(self) -> bool:
-        return self.down is not None
+    @property
+    def file_name(self) -> str:
+        return f"{self.revision}_{self.name}.py"
 
 
 class MigrationRegistry:
@@ -53,7 +45,7 @@ class MigrationRegistry:
         if not self._migrations.get(revision):
             self._migrations[revision] = migration
 
-        if migration.has_up():
+        if migration.up:
             raise DuplicateMigrationError(
                 f"'up' migration already registered for revision {revision}"
             )
@@ -67,7 +59,7 @@ class MigrationRegistry:
         if not self._migrations.get(revision):
             self._migrations[revision] = migration
 
-        if migration.has_down():
+        if migration.down:
             raise DuplicateMigrationError(
                 f"'down' migration already registered for revision {revision}"
             )
@@ -76,66 +68,64 @@ class MigrationRegistry:
     def get_all(self) -> list[Migration]:
         return sorted(self._migrations.values(), key=lambda m: m.revision)
 
-    def get(self, revision: int) -> Migration:
-        return self._migrations[revision]
+    def get(self, revision: int) -> Migration | None:
+        return self._migrations.get(revision)
 
     def clear(self) -> None:
         self._migrations.clear()
 
+    def __len__(self) -> int:
+        return len(self.get_all())
 
-registry = MigrationRegistry()
+    def __iter__(self) -> Iterator[Migration]:
+        return iter(self.get_all())
 
 
-def up() -> Callable[[F], F]:
-    """Decorator for 'up' migration.
+def up(func: F) -> F:
+    """Decorator to register an 'up' migration.
 
-    :return: Decorated function
-    :rtype: Callable
-    :raises DuplicateMigrationError: If 'up' already registered for this revision
+    ## Example
 
-    Example::
+    ```python
+    from pelican import migration
 
-        @up(20251003120000)
-        def upgrade():
-            create_table('users')
+
+    @migration.up
+    def upgrade() -> None:
+        ...
+    ```
     """
+    from pelican import registry
 
-    def decorator(func: F) -> F:
-        revision, name = _fetch_migration_information(func)
-        registry.register_up(revision, name, func)
-        return func
+    revision, name = _extract_migration_information(func)
+    registry.register_up(revision, name, func)
 
-    return decorator
+    return func
 
 
-def down() -> Callable[[F], F]:
-    """Decorator for 'down' migration.
+def down(func: F) -> F:
+    """Decorator to register a 'down' migration.
 
-    :return: Decorated function
-    :rtype: Callable
-    :raises DuplicateMigrationError: If 'down' already registered for this revision
+    ## Example
 
-    Example::
+    ```python
+    from pelican import migration
 
-        @down(20251003120000)
-        def downgrade():
-            drop_table('users')
+
+    @migration.down
+    def downgrade() -> None:
+        ...
+    ```
     """
+    from pelican import registry
 
-    def decorator(func: F) -> F:
-        revision, name = _fetch_migration_information(func)
-        registry.register_down(revision, name, func)
-        return func
+    revision, name = _extract_migration_information(func)
+    registry.register_down(revision, name, func)
 
-    return decorator
-
-
-def clear() -> None:
-    """Clear all registered migrations"""
-    registry.clear()
+    return func
 
 
-def _fetch_migration_information(func: F) -> tuple[int, str]:
+def _extract_migration_information(func: F) -> tuple[int, str]:
     file_name = Path(func.__globals__.get("__file__", "")).name
     base_name = Path(file_name).stem
 

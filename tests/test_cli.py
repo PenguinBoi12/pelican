@@ -1,0 +1,174 @@
+from collections.abc import Iterator
+from pathlib import Path
+
+import pytest
+from click.testing import CliRunner
+
+import pelican.cli as cli_module
+from pelican.cli import cli
+from pelican.migration import Migration, MigrationRegistry
+
+
+class _NoopLoader:
+    def load_migrations(self) -> None:
+        pass
+
+
+class _EmptyRunner:
+    def get_applied_versions(self) -> Iterator[int]:
+        return iter([])
+
+
+class _AppliedRunner:
+    def __init__(self, applied: list[int]) -> None:
+        self._applied = applied
+
+    def get_applied_versions(self) -> Iterator[int]:
+        return iter(self._applied)
+
+
+class _SuccessRunner:
+    def __init__(self, applied: list[int] | None = None) -> None:
+        self._applied = applied or []
+
+    def get_applied_versions(self) -> Iterator[int]:
+        return iter(self._applied)
+
+    def upgrade(self, migration: Migration) -> None:
+        pass
+
+    def downgrade(self, migration: Migration) -> None:
+        pass
+
+
+class _EmptyRegistry:
+    def get(self, revision: int) -> None:
+        return None
+
+    def get_all(self) -> list[Migration]:
+        return []
+
+
+def _registry_with(*revisions: int) -> MigrationRegistry:
+    r = MigrationRegistry()
+    for rev in revisions:
+        r.register_up(rev, f"migration_{rev}", lambda: None)
+        r.register_down(rev, f"migration_{rev}", lambda: None)
+    return r
+
+
+@pytest.fixture(autouse=True)
+def patch_loader(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(cli_module, "loader", _NoopLoader())
+
+
+def test_init__expect_directory_and_env_created(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(cli, ["init"])
+
+    assert result.exit_code == 0
+    assert (tmp_path / "db" / "migrations").exists()
+    assert (tmp_path / ".env").exists()
+    assert "DATABASE_URL" in (tmp_path / ".env").read_text()
+    assert "Next steps" in result.output
+
+
+def test_init__with_existing_project__expect_skip_messages(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "db" / "migrations").mkdir(parents=True)
+    (tmp_path / ".env").write_text("DATABASE_URL=postgresql://localhost/mydb\n")
+
+    result = CliRunner().invoke(cli, ["init"])
+
+    assert result.exit_code == 0
+    assert "skipping" in result.output
+    assert "Next steps" not in result.output
+    assert (
+        tmp_path / ".env"
+    ).read_text() == "DATABASE_URL=postgresql://localhost/mydb\n"
+
+
+def test_down__with_no_applied_migrations__expect_message(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(cli_module, "runner", _EmptyRunner())
+    monkeypatch.setattr(cli_module, "registry", _EmptyRegistry())
+
+    result = CliRunner().invoke(cli, ["down"])
+
+    assert result.exit_code == 0
+    assert "No migrations have been applied." in result.output
+
+
+def test_down__with_unknown_revision__expect_exit_1(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(cli_module, "runner", _AppliedRunner([1]))
+    monkeypatch.setattr(cli_module, "registry", _EmptyRegistry())
+
+    result = CliRunner().invoke(cli, ["down", "99"])
+
+    assert result.exit_code == 1
+    assert "not found" in result.output
+
+
+def test_up__with_unknown_revision__expect_exit_1(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(cli_module, "runner", _EmptyRunner())
+    monkeypatch.setattr(cli_module, "registry", _EmptyRegistry())
+
+    result = CliRunner().invoke(cli, ["up", "99"])
+
+    assert result.exit_code == 1
+    assert "not found" in result.output
+
+
+def test_up__with_already_applied_revision__expect_message(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(cli_module, "runner", _AppliedRunner([1]))
+    monkeypatch.setattr(cli_module, "registry", _registry_with(1))
+
+    result = CliRunner().invoke(cli, ["up", "1"])
+
+    assert result.exit_code == 0
+    assert "already applied" in result.output
+
+
+def test_up__expect_applied_output(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(cli_module, "runner", _SuccessRunner(applied=[]))
+    monkeypatch.setattr(cli_module, "registry", _registry_with(1))
+
+    result = CliRunner().invoke(cli, ["up"])
+
+    assert result.exit_code == 0
+    assert "Applied" in result.output
+
+
+def test_down__expect_rolled_back_output(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(cli_module, "runner", _SuccessRunner(applied=[1]))
+    monkeypatch.setattr(cli_module, "registry", _registry_with(1))
+
+    result = CliRunner().invoke(cli, ["down"])
+
+    assert result.exit_code == 0
+    assert "Rolled back" in result.output
+
+
+def test_status__with_mixed_migrations__expect_correct_symbols(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(cli_module, "runner", _AppliedRunner([1]))
+    monkeypatch.setattr(cli_module, "registry", _registry_with(1, 2))
+
+    result = CliRunner().invoke(cli, ["status"])
+
+    assert result.exit_code == 0
+    assert "✓" in result.output
+    assert "○" in result.output
