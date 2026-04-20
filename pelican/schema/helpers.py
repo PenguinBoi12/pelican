@@ -14,6 +14,7 @@ from sqlalchemy import (
     ForeignKey,
     MetaData,
 )
+import inflection
 from .operations import (
     Operation,
     AddColumn,
@@ -95,13 +96,13 @@ class TableBuilder:
         self.datetime("updated_at", onupdate=func.now(), nullable=False)
 
     def references(
-        self, table_name: str, on_delete: str = "CASCADE", **kwargs: Any
+        self, model_name: str, on_delete: str = "CASCADE", **kwargs: Any
     ) -> None:
         self.table.append_column(
             Column(
-                f"{table_name.rstrip('s')}_id",
+                f"{model_name}_id",
                 Integer,
-                ForeignKey(f"{table_name}.id", ondelete=on_delete),
+                ForeignKey(f"{inflection.pluralize(model_name)}.id", ondelete=on_delete),
                 **kwargs,
             )
         )

@@ -164,6 +164,18 @@ def test_drop_table__expect_table_removed(db_runner):
     assert not _table_exists(db_runner, "temporary")
 
 
+def test_create_table__with_references__expect_fk_column(db_runner):
+    with create_table("users") as t:
+        t.string("name")
+
+    with create_table("posts") as t:
+        t.string("title")
+        t.references("user")
+
+    cols = _column_names(db_runner, "posts")
+    assert "user_id" in cols
+
+
 def test_upgrade_then_downgrade__expect_table_created_and_removed(db_runner):
     def upgrade():
         with create_table("posts") as t:
