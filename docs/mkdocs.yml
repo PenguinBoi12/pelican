@@ -12,15 +12,15 @@ theme:
         name: Switch to light mode
     - media: '(prefers-color-scheme: light)'
       scheme: default
-      primary: blue
-      accent: amber
+      primary: deep orange
+      accent: blue grey
       toggle:
         icon: material/lightbulb
         name: Switch to dark mode
     - media: '(prefers-color-scheme: dark)'
       scheme: slate
-      primary: blue
-      accent: amber
+      primary: deep orange
+      accent: blue grey
       toggle:
         icon: material/lightbulb-outline
         name: Switch to system preference
