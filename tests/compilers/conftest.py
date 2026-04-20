@@ -1,4 +1,5 @@
 import sys
+from typing import Generator
 from unittest.mock import MagicMock
 
 import pytest
@@ -11,7 +12,7 @@ from pelican.compilers.sqlite import SQLiteCompiler
 
 
 @pytest.fixture(autouse=True)
-def restore_pelican_module():
+def restore_pelican_module() -> Generator[None, None, None]:
     sys.modules["pelican"] = pelican
     yield
 

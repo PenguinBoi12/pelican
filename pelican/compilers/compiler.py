@@ -6,6 +6,7 @@ from sqlalchemy.sql import Executable, DDLElement
 from sqlalchemy.schema import (
     CreateColumn,
     CreateIndex,
+    DDL,
     DropIndex,
 )
 from sqlalchemy import (
@@ -34,7 +35,7 @@ class DialectCompiler(ABC):
     @abstractmethod
     def rename_column(
         self, table_name: str, old_name: str, new_name: str
-    ) -> Iterable[DDLElement]:
+    ) -> Iterable[DDL]:
         pass
 
     @abstractmethod
@@ -46,7 +47,7 @@ class DialectCompiler(ABC):
         nullable: bool | None = None,
         default: Any = None,
         server_default: Any = None,
-    ) -> Iterable[DDLElement]:
+    ) -> Iterable[DDL]:
         pass
 
     def create_index(

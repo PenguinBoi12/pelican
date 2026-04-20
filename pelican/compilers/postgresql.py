@@ -1,7 +1,6 @@
 from typing import Any, Iterable
 
 from sqlalchemy.schema import DDL
-from sqlalchemy.sql import DDLElement
 from sqlalchemy.types import TypeEngine
 
 from .compiler import DialectCompiler
@@ -10,7 +9,7 @@ from .compiler import DialectCompiler
 class PostgreSQLCompiler(DialectCompiler):
     def rename_column(
         self, table_name: str, old_name: str, new_name: str
-    ) -> Iterable[DDLElement]:
+    ) -> Iterable[DDL]:
         return [DDL(f"ALTER TABLE {table_name} RENAME COLUMN {old_name} TO {new_name}")]
 
     def alter_column(
@@ -21,7 +20,7 @@ class PostgreSQLCompiler(DialectCompiler):
         nullable: bool | None = None,
         default: Any = None,
         server_default: Any = None,
-    ) -> Iterable[DDLElement]:
+    ) -> Iterable[DDL]:
         statements = []
 
         if new_type is not None:

@@ -25,7 +25,7 @@ def downgrade():
 # --- discover_migration_files ---
 
 
-def test_discover_migration_files__expect_py_files_returned(tmp_path):
+def test_discover_migration_files__expect_py_files_returned(tmp_path: Path) -> None:
     (tmp_path / "1_create_users.py").write_text("")
     (tmp_path / "2_add_email.py").write_text("")
 
@@ -35,7 +35,7 @@ def test_discover_migration_files__expect_py_files_returned(tmp_path):
     assert all(str(f).endswith(".py") for f in files)
 
 
-def test_discover_migration_files__with_non_py_files__expect_ignored(tmp_path):
+def test_discover_migration_files__with_non_py_files__expect_ignored(tmp_path: Path) -> None:
     (tmp_path / "1_create_users.py").write_text("")
     (tmp_path / "README.md").write_text("")
     (tmp_path / "notes.txt").write_text("")
@@ -45,7 +45,7 @@ def test_discover_migration_files__with_non_py_files__expect_ignored(tmp_path):
     assert len(files) == 1
 
 
-def test_discover_migration_files__with_missing_directory__expect_error(tmp_path):
+def test_discover_migration_files__with_missing_directory__expect_error(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError):
         discover_migration_files(tmp_path / "nonexistent")
 
@@ -53,7 +53,7 @@ def test_discover_migration_files__with_missing_directory__expect_error(tmp_path
 # --- load_migration_file ---
 
 
-def test_load_migration_file__expect_migration_registered(tmp_path, registry):
+def test_load_migration_file__expect_migration_registered(tmp_path: Path, registry: MigrationRegistry) -> None:
     migration_file = tmp_path / "1_create_users.py"
     migration_file.write_text(_MIGRATION_TEMPLATE)
 
@@ -69,7 +69,7 @@ def test_load_migration_file__expect_migration_registered(tmp_path, registry):
 # --- load_migrations ---
 
 
-def test_load_migrations__expect_all_files_registered(tmp_path, registry):
+def test_load_migrations__expect_all_files_registered(tmp_path: Path, registry: MigrationRegistry) -> None:
     for rev, name in [(1, "create_users"), (2, "add_email"), (3, "create_posts")]:
         (tmp_path / f"{rev}_{name}.py").write_text(_MIGRATION_TEMPLATE)
 
@@ -79,7 +79,7 @@ def test_load_migrations__expect_all_files_registered(tmp_path, registry):
     assert {m.revision for m in registry} == {1, 2, 3}
 
 
-def test_load_migrations__expect_registry_cleared_before_load(tmp_path, registry):
+def test_load_migrations__expect_registry_cleared_before_load(tmp_path: Path, registry: MigrationRegistry) -> None:
     registry.register_up(99, "stale", lambda: None)
 
     (tmp_path / "1_create_users.py").write_text(_MIGRATION_TEMPLATE)
@@ -91,13 +91,13 @@ def test_load_migrations__expect_registry_cleared_before_load(tmp_path, registry
 
 
 def test_load_migrations__with_empty_directory__expect_empty_registry(
-    tmp_path, registry
-):
+    tmp_path: Path, registry: MigrationRegistry
+) -> None:
     load_migrations(tmp_path)
 
     assert len(registry) == 0
 
 
-def test_load_migrations__with_missing_directory__expect_error(tmp_path):
+def test_load_migrations__with_missing_directory__expect_error(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError):
         load_migrations(tmp_path / "nonexistent")

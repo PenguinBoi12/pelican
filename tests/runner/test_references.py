@@ -2,6 +2,7 @@ import pytest
 from sqlalchemy import inspect
 
 from pelican import create_table
+from pelican.runner import MigrationRunner
 
 
 @pytest.mark.parametrize(
@@ -15,8 +16,8 @@ from pelican import create_table
     ],
 )
 def test_references__with_model_name__expect_fk_to_plural_table(
-    model_name, expected_table, db_runner
-):
+    model_name: str, expected_table: str, db_runner: MigrationRunner
+) -> None:
     with create_table(expected_table) as t:
         t.string("name")
 
