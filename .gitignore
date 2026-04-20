@@ -211,3 +211,6 @@ __marimo__/
 
 # database
 *.db
+
+# version
+pelican/_version.py

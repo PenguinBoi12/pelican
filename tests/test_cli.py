@@ -47,7 +47,9 @@ def patch_loader(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(cli_module, "loader", _NoopLoader())
 
 
-def test_down__with_no_applied_migrations__expect_message(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_down__with_no_applied_migrations__expect_message(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(cli_module, "runner", _EmptyRunner())
     monkeypatch.setattr(cli_module, "registry", _EmptyRegistry())
 
@@ -57,7 +59,9 @@ def test_down__with_no_applied_migrations__expect_message(monkeypatch: pytest.Mo
     assert "No migrations have been applied." in result.output
 
 
-def test_down__with_unknown_revision__expect_exit_1(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_down__with_unknown_revision__expect_exit_1(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(cli_module, "runner", _AppliedRunner([1]))
     monkeypatch.setattr(cli_module, "registry", _EmptyRegistry())
 
@@ -67,7 +71,9 @@ def test_down__with_unknown_revision__expect_exit_1(monkeypatch: pytest.MonkeyPa
     assert "not found" in result.output
 
 
-def test_up__with_unknown_revision__expect_exit_1(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_up__with_unknown_revision__expect_exit_1(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(cli_module, "runner", _EmptyRunner())
     monkeypatch.setattr(cli_module, "registry", _EmptyRegistry())
 
@@ -77,7 +83,9 @@ def test_up__with_unknown_revision__expect_exit_1(monkeypatch: pytest.MonkeyPatc
     assert "not found" in result.output
 
 
-def test_up__with_already_applied_revision__expect_message(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_up__with_already_applied_revision__expect_message(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(cli_module, "runner", _AppliedRunner([1]))
     monkeypatch.setattr(cli_module, "registry", _registry_with(1))
 
@@ -85,3 +93,16 @@ def test_up__with_already_applied_revision__expect_message(monkeypatch: pytest.M
 
     assert result.exit_code == 0
     assert "already applied" in result.output
+
+
+def test_status__with_mixed_migrations__expect_correct_symbols(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(cli_module, "runner", _AppliedRunner([1]))
+    monkeypatch.setattr(cli_module, "registry", _registry_with(1, 2))
+
+    result = CliRunner().invoke(cli, ["status"])
+
+    assert result.exit_code == 0
+    assert "✓" in result.output
+    assert "○" in result.output

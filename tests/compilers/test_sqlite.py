@@ -16,11 +16,15 @@ def test_rename_column__expect_rename_sql(sqlite_compiler: SQLiteCompiler) -> No
     assert "RENAME COLUMN name TO full_name" in ddls[0].statement
 
 
-def test_alter_column__with_new_type__expect_not_implemented(sqlite_compiler: SQLiteCompiler) -> None:
+def test_alter_column__with_new_type__expect_not_implemented(
+    sqlite_compiler: SQLiteCompiler,
+) -> None:
     with pytest.raises(NotImplementedError):
         sqlite_compiler.alter_column("users", "bio", new_type=Text())
 
 
-def test_alter_column__with_nullable__expect_not_implemented(sqlite_compiler: SQLiteCompiler) -> None:
+def test_alter_column__with_nullable__expect_not_implemented(
+    sqlite_compiler: SQLiteCompiler,
+) -> None:
     with pytest.raises(NotImplementedError):
         sqlite_compiler.alter_column("users", "email", nullable=False)

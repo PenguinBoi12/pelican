@@ -26,7 +26,9 @@ def db_runner(monkeypatch: pytest.MonkeyPatch) -> MigrationRunner:
 
 
 @pytest.fixture
-def int_registry(monkeypatch: pytest.MonkeyPatch) -> Generator[MigrationRegistry, None, None]:
+def int_registry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> Generator[MigrationRegistry, None, None]:
     registry = MigrationRegistry()
     monkeypatch.setattr(pelican, "registry", registry)
     yield registry

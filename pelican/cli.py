@@ -73,7 +73,7 @@ def down(revision: int | None) -> None:
 def status() -> None:
     """Display the migration status."""
     loader.load_migrations()
-    applied = runner.get_applied_versions()
+    applied = set(runner.get_applied_versions())
 
     echo("\nMigration Status")
     echo("-" * 30)
