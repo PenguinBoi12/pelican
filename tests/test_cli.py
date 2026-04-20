@@ -1,4 +1,5 @@
 from collections.abc import Iterator
+from pathlib import Path
 
 import pytest
 from click.testing import CliRunner
@@ -59,6 +60,37 @@ def _registry_with(*revisions: int) -> MigrationRegistry:
 @pytest.fixture(autouse=True)
 def patch_loader(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(cli_module, "loader", _NoopLoader())
+
+
+def test_init__expect_directory_and_env_created(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(cli, ["init"])
+
+    assert result.exit_code == 0
+    assert (tmp_path / "db" / "migrations").exists()
+    assert (tmp_path / ".env").exists()
+    assert "DATABASE_URL" in (tmp_path / ".env").read_text()
+    assert "Next steps" in result.output
+
+
+def test_init__with_existing_project__expect_skip_messages(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "db" / "migrations").mkdir(parents=True)
+    (tmp_path / ".env").write_text("DATABASE_URL=postgresql://localhost/mydb\n")
+
+    result = CliRunner().invoke(cli, ["init"])
+
+    assert result.exit_code == 0
+    assert "skipping" in result.output
+    assert "Next steps" not in result.output
+    assert (
+        tmp_path / ".env"
+    ).read_text() == "DATABASE_URL=postgresql://localhost/mydb\n"
 
 
 def test_down__with_no_applied_migrations__expect_message(

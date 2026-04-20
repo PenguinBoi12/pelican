@@ -35,6 +35,32 @@ def cli() -> None:
 
 
 @cli.command()
+def init() -> None:
+    """Initialize a new Pelican project."""
+    migrations_dir = Path("db/migrations")
+    env_file = Path(".env")
+    already_exists = migrations_dir.exists() and env_file.exists()
+
+    if not migrations_dir.exists():
+        migrations_dir.mkdir(parents=True)
+        echo(f"Created {migrations_dir}/")
+    else:
+        echo(f"{migrations_dir}/ already exists, skipping.")
+
+    if not env_file.exists():
+        env_file.write_text("DATABASE_URL=sqlite:///database.db\n")
+        echo(f"Created {env_file}")
+    else:
+        echo(f"{env_file} already exists, skipping.")
+
+    if not already_exists:
+        echo("\nNext steps:")
+        echo(f"  1. Set DATABASE_URL in {env_file}")
+        echo("  2. Run 'pelican generate <name>' to create your first migration")
+        echo("  3. Run 'pelican up' to apply it")
+
+
+@cli.command()
 @argument("name", nargs=1)
 def generate(name: str) -> None:
     """Generate a new migration with the given name"""
@@ -76,7 +102,9 @@ def up(revision: int | None) -> None:
 
     for migration in migrations:
         runner.upgrade(migration)
-        echo(f"  {style('✓', fg='green')} Applied {migration.revision} {migration.display_name}")
+        echo(
+            f"  {style('✓', fg='green')} Applied {migration.revision} {migration.display_name}"
+        )
 
 
 @cli.command()
@@ -98,7 +126,9 @@ def down(revision: int | None) -> None:
         sys.exit(1)
 
     runner.downgrade(migration)
-    echo(f"  {style('✓', fg='green')} Rolled back {migration.revision} {migration.display_name}")
+    echo(
+        f"  {style('✓', fg='green')} Rolled back {migration.revision} {migration.display_name}"
+    )
 
 
 @cli.command()
