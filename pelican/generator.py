@@ -14,13 +14,34 @@ def _generate_revision() -> int:
     return int(datetime.now().strftime("%Y%m%d%H%M%S"))
 
 
-def generate_migration(name: str, migration_dir: str | Path = "db/migrations/") -> Path:
+def generate_migration(
+    name: str,
+    body: str | None = None,
+    migration_dir: str | Path = "db/migrations/",
+) -> Path:
     migration = Migration(revision=_generate_revision(), name=name)
     migration_file = Path(migration_dir) / migration.file_name
-
-    content = _get_template("migration").format(migration=migration)
-
     migration_file.parent.mkdir(parents=True, exist_ok=True)
-    migration_file.write_text(content)
 
+    if body is None:
+        content = _get_template("migration").format(migration=migration)
+    else:
+        content = body
+
+    migration_file.write_text(content)
     return migration_file
+
+
+def render_migration(ops: list, name: str, revision: int) -> str:
+    from .diff.codegen import _render_up, _render_down
+
+    template = _get_template("autogenerate")
+    up_body = _render_up(ops)
+    down_body = _render_down(ops)
+    display_name = name.replace("_", " ").capitalize()
+    return template.format(
+        revision=revision,
+        display_name=display_name,
+        up_body=up_body,
+        down_body=down_body,
+    )

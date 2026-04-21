@@ -1,6 +1,7 @@
 import sys
 from pathlib import Path
 
+import click
 from click import group, argument, option, echo, style, pass_context, Context
 
 from pelican._context import use_context, get_runner
@@ -156,6 +157,98 @@ def status() -> None:
             f"{style(status_symbol, fg=color)} {migration.revision} {migration.display_name}"
         )
     echo()
+
+
+@cli.command()
+@argument("name", nargs=1)
+@option("--models", "models_path", required=True, help="Import path to your models module (e.g. myapp.models)")
+@option("--force", is_flag=True, default=False, help="Write migration even if validation finds discrepancies")
+def autogenerate(name: str, models_path: str, force: bool) -> None:
+    """Autogenerate a migration by diffing your models against the live database."""
+    from .diff.discovery import load_target_metadata
+    from .diff.extractor import extract_from_metadata
+    from .diff.inspector import introspect_live_db
+    from .diff.differ import diff
+    from .diff.validator import validate
+    from .diff.operations import RenameColumn
+    from .generator import generate_migration, render_migration, _generate_revision
+
+    db_runner = get_runner()
+    if not db_runner.has_database_url:
+        echo(
+            style("Error:", fg="red")
+            + " DATABASE_URL is not set. Set it in your environment or .env file.",
+            err=True,
+        )
+        sys.exit(1)
+
+    try:
+        metadata = load_target_metadata(models_path)
+    except (ImportError, ValueError) as e:
+        echo(style("Error:", fg="red") + f" {e}", err=True)
+        sys.exit(1)
+
+    desired = extract_from_metadata(metadata, db_runner.engine.dialect)
+    current = introspect_live_db(db_runner.engine)
+    ops = diff(current, desired)
+
+    if not ops:
+        echo("No changes detected.")
+        return
+
+    confirmed_ops = []
+    for op in ops:
+        if isinstance(op, RenameColumn) and op.confidence < 1.0:
+            pct = int(op.confidence * 100)
+            choice = click.prompt(
+                f"  Rename detected: {op.table_name}.{op.old_name} → {op.new_name} "
+                f"[{pct}% confidence]. Apply as rename?",
+                type=click.Choice(["y", "n", "drop+add"], case_sensitive=False),
+                default="y",
+            )
+            if choice.lower() == "n":
+                continue
+            if choice.lower() == "drop+add":
+                from .diff.schema import SchemaColumn
+                cur_col = next(
+                    (c for t in current.tables if t.name == op.table_name for c in t.columns if c.name == op.old_name),
+                    None,
+                )
+                des_col = next(
+                    (c for t in desired.tables if t.name == op.table_name for c in t.columns if c.name == op.new_name),
+                    None,
+                )
+                from .diff.operations import DropColumn, AddColumn
+                if cur_col:
+                    confirmed_ops.append(DropColumn(op.table_name, cur_col))
+                if des_col:
+                    confirmed_ops.append(AddColumn(op.table_name, des_col))
+                continue
+        confirmed_ops.append(op)
+
+    ops = confirmed_ops
+
+    result = validate(current, desired, ops)
+    if not result.is_valid:
+        echo(style("✗", fg="red") + " Validation failed. Migration not written.")
+        echo("  After applying, the following would still differ from your models:")
+        for disc in result.discrepancies:
+            echo(f"    {disc}")
+        if not force:
+            echo(f"\n  Run with {style('--force', bold=True)} to write anyway.")
+            sys.exit(1)
+        echo(style("  Writing anyway (--force).", fg="yellow"))
+
+    echo("\nDetecting changes...\n")
+    for op in ops:
+        echo(f"  {op}")
+
+    revision = _generate_revision()
+    body = render_migration(ops, name, revision)
+    migration_file = generate_migration(name, body=body)
+
+    echo(f"\nGenerated {migration_file}")
+    echo(style("Tip:", fg="cyan") + " Review the migration before running 'pelican up'.")
 
 
 if __name__ == "__main__":
