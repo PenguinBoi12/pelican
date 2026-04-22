@@ -42,11 +42,11 @@ def _col(
     )
 
 
-def _state(*tables, enums=None) -> SchemaState:
+def _state(*tables: SchemaTable, enums: list[SchemaEnum] | None = None) -> SchemaState:
     return SchemaState(dialect="sqlite", tables=list(tables), enums=enums or [])
 
 
-def _table(name: str, *columns) -> SchemaTable:
+def _table(name: str, *columns: SchemaColumn) -> SchemaTable:
     return SchemaTable(name=name, columns=list(columns))
 
 

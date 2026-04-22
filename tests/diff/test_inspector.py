@@ -1,12 +1,13 @@
 import pytest
 from sqlalchemy import create_engine, text
+from sqlalchemy.engine import Engine
 
 from pelican.diff.inspector import introspect_live_db
 from pelican.diff.schema import SchemaState
 
 
 @pytest.fixture
-def engine():
+def engine() -> Engine:
     e = create_engine("sqlite:///:memory:")
     with e.begin() as conn:
         conn.execute(text("""
@@ -31,20 +32,20 @@ def engine():
     return e
 
 
-def test_introspect_live_db__expect_schema_state(engine) -> None:
+def test_introspect_live_db__expect_schema_state(engine: Engine) -> None:
     state = introspect_live_db(engine)
     assert isinstance(state, SchemaState)
     assert state.dialect == "sqlite"
 
 
-def test_introspect_live_db__expect_tables_found(engine) -> None:
+def test_introspect_live_db__expect_tables_found(engine: Engine) -> None:
     state = introspect_live_db(engine)
     names = [t.name for t in state.tables]
     assert "users" in names
     assert "posts" in names
 
 
-def test_introspect_live_db__expect_pelican_migration_excluded(engine) -> None:
+def test_introspect_live_db__expect_pelican_migration_excluded(engine: Engine) -> None:
     with engine.begin() as conn:
         conn.execute(text("""
             CREATE TABLE pelican_migration (version INTEGER PRIMARY KEY)
@@ -54,21 +55,21 @@ def test_introspect_live_db__expect_pelican_migration_excluded(engine) -> None:
     assert "pelican_migration" not in names
 
 
-def test_introspect_live_db__expect_columns_inspected(engine) -> None:
+def test_introspect_live_db__expect_columns_inspected(engine: Engine) -> None:
     state = introspect_live_db(engine)
     users = next(t for t in state.tables if t.name == "users")
     col_names = [c.name for c in users.columns]
     assert col_names == ["id", "email", "bio", "score"]
 
 
-def test_introspect_live_db__expect_primary_key_detected(engine) -> None:
+def test_introspect_live_db__expect_primary_key_detected(engine: Engine) -> None:
     state = introspect_live_db(engine)
     users = next(t for t in state.tables if t.name == "users")
     id_col = next(c for c in users.columns if c.name == "id")
     assert id_col.primary_key is True
 
 
-def test_introspect_live_db__expect_nullable_detected(engine) -> None:
+def test_introspect_live_db__expect_nullable_detected(engine: Engine) -> None:
     state = introspect_live_db(engine)
     users = next(t for t in state.tables if t.name == "users")
     email_col = next(c for c in users.columns if c.name == "email")
@@ -77,7 +78,7 @@ def test_introspect_live_db__expect_nullable_detected(engine) -> None:
     assert bio_col.nullable is True
 
 
-def test_introspect_live_db__expect_index_found(engine) -> None:
+def test_introspect_live_db__expect_index_found(engine: Engine) -> None:
     state = introspect_live_db(engine)
     users = next(t for t in state.tables if t.name == "users")
     idx = next((i for i in users.indexes if i.name == "users_email_idx"), None)
@@ -86,14 +87,14 @@ def test_introspect_live_db__expect_index_found(engine) -> None:
     assert idx.columns == ["email"]
 
 
-def test_introspect_live_db__expect_type_normalized(engine) -> None:
+def test_introspect_live_db__expect_type_normalized(engine: Engine) -> None:
     state = introspect_live_db(engine)
     users = next(t for t in state.tables if t.name == "users")
     email_col = next(c for c in users.columns if c.name == "email")
     assert email_col.type == "VARCHAR(255)"
 
 
-def test_introspect_live_db__expect_column_positions(engine) -> None:
+def test_introspect_live_db__expect_column_positions(engine: Engine) -> None:
     state = introspect_live_db(engine)
     users = next(t for t in state.tables if t.name == "users")
     positions = [c.position for c in users.columns]

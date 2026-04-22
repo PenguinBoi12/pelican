@@ -1,3 +1,5 @@
+from collections.abc import Sequence
+
 from .operations import (
     DiffOperation,
     CreateTable,
@@ -21,7 +23,7 @@ _STANDALONE = (
 )
 
 
-def render_up(ops: list[DiffOperation]) -> str:
+def render_up(ops: Sequence[DiffOperation]) -> str:
     lines: list[str] = []
 
     for op in ops:
@@ -36,7 +38,7 @@ def render_up(ops: list[DiffOperation]) -> str:
     return "\n".join(lines) if lines else f"{_INDENT}pass"
 
 
-def render_down(ops: list[DiffOperation]) -> str:
+def render_down(ops: Sequence[DiffOperation]) -> str:
     lines: list[str] = []
 
     for op in reversed(ops):
@@ -52,7 +54,7 @@ def render_down(ops: list[DiffOperation]) -> str:
 
 
 def _render_change_table(
-    table_name: str, ops: list[DiffOperation], *, up: bool
+    table_name: str, ops: Sequence[DiffOperation], *, up: bool
 ) -> list[str]:
     inner = [
         _INDENT_BLOCK + line
@@ -64,7 +66,7 @@ def _render_change_table(
     return [f"{_INDENT}with change_table({table_name!r}) as t:"] + inner
 
 
-def _group_by_table(ops: list[DiffOperation]) -> dict[str, list[DiffOperation]]:
+def _group_by_table(ops: Sequence[DiffOperation]) -> dict[str, list[DiffOperation]]:
     result: dict[str, list[DiffOperation]] = {}
     for op in ops:
         if not isinstance(op, _STANDALONE) and hasattr(op, "table_name"):

@@ -21,7 +21,7 @@ from pelican.diff.schema import SchemaState
 _DIALECT = sqlite_dialect.dialect()
 
 
-def _make_metadata(*tables) -> MetaData:
+def _make_metadata(*tables: Table) -> MetaData:
     metadata = MetaData()
     for t in tables:
         t.tometadata(metadata)
@@ -29,7 +29,7 @@ def _make_metadata(*tables) -> MetaData:
 
 
 @pytest.fixture
-def simple_metadata():
+def simple_metadata() -> MetaData:
     metadata = MetaData()
     Table(
         "users",
@@ -41,32 +41,38 @@ def simple_metadata():
     return metadata
 
 
-def test_extract_from_metadata__expect_schema_state(simple_metadata) -> None:
+def test_extract_from_metadata__expect_schema_state(simple_metadata: MetaData) -> None:
     state = extract_from_metadata(simple_metadata, _DIALECT)
     assert isinstance(state, SchemaState)
     assert state.dialect == "sqlite"
 
 
-def test_extract_from_metadata__expect_table_found(simple_metadata) -> None:
+def test_extract_from_metadata__expect_table_found(simple_metadata: MetaData) -> None:
     state = extract_from_metadata(simple_metadata, _DIALECT)
     assert any(t.name == "users" for t in state.tables)
 
 
-def test_extract_from_metadata__expect_columns_extracted(simple_metadata) -> None:
+def test_extract_from_metadata__expect_columns_extracted(
+    simple_metadata: MetaData,
+) -> None:
     state = extract_from_metadata(simple_metadata, _DIALECT)
     users = next(t for t in state.tables if t.name == "users")
     col_names = [c.name for c in users.columns]
     assert col_names == ["id", "email", "bio"]
 
 
-def test_extract_from_metadata__expect_primary_key_detected(simple_metadata) -> None:
+def test_extract_from_metadata__expect_primary_key_detected(
+    simple_metadata: MetaData,
+) -> None:
     state = extract_from_metadata(simple_metadata, _DIALECT)
     users = next(t for t in state.tables if t.name == "users")
     id_col = next(c for c in users.columns if c.name == "id")
     assert id_col.primary_key is True
 
 
-def test_extract_from_metadata__expect_nullable_extracted(simple_metadata) -> None:
+def test_extract_from_metadata__expect_nullable_extracted(
+    simple_metadata: MetaData,
+) -> None:
     state = extract_from_metadata(simple_metadata, _DIALECT)
     users = next(t for t in state.tables if t.name == "users")
     email_col = next(c for c in users.columns if c.name == "email")
@@ -75,7 +81,9 @@ def test_extract_from_metadata__expect_nullable_extracted(simple_metadata) -> No
     assert bio_col.nullable is True
 
 
-def test_extract_from_metadata__expect_type_normalized(simple_metadata) -> None:
+def test_extract_from_metadata__expect_type_normalized(
+    simple_metadata: MetaData,
+) -> None:
     state = extract_from_metadata(simple_metadata, _DIALECT)
     users = next(t for t in state.tables if t.name == "users")
     email_col = next(c for c in users.columns if c.name == "email")

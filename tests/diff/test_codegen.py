@@ -20,6 +20,9 @@ from pelican.diff.operations import (
     AddEnumValue,
     RemoveEnumValue,
 )
+from collections.abc import Sequence
+
+from pelican.diff.operations import DiffOperation
 from pelican.migration import Migration
 from pelican.generator import _render_autogenerate_body
 
@@ -38,18 +41,18 @@ def _col(
     )
 
 
-def _render(ops) -> str:
+def _render(ops: Sequence[DiffOperation]) -> str:
     return _render_autogenerate_body(
         ops, Migration(revision=20260421000000, name="test_migration")
     )
 
 
-def _up(ops) -> str:
+def _up(ops: Sequence[DiffOperation]) -> str:
     content = _render(ops)
     return content.split("def upgrade()")[1].split("def downgrade()")[0]
 
 
-def _down(ops) -> str:
+def _down(ops: Sequence[DiffOperation]) -> str:
     content = _render(ops)
     return content.split("def downgrade()")[1]
 

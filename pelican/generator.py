@@ -1,7 +1,9 @@
+from collections.abc import Sequence
 from datetime import datetime
 from pathlib import Path
 
 from .diff.codegen import render_up, render_down
+from .diff.operations import DiffOperation
 from .migration import Migration
 
 _TEMPLATE_DIR: Path = Path(__file__).parent / "templates"
@@ -16,7 +18,9 @@ def _generate_revision() -> int:
     return int(datetime.now().strftime("%Y%m%d%H%M%S"))
 
 
-def _render_autogenerate_body(ops: list, migration: Migration) -> str:
+def _render_autogenerate_body(
+    ops: Sequence[DiffOperation], migration: Migration
+) -> str:
     template = _get_template("autogenerate")
     return template.format(
         revision=migration.revision,
@@ -28,7 +32,7 @@ def _render_autogenerate_body(ops: list, migration: Migration) -> str:
 
 def generate_migration(
     name: str,
-    ops: list | None = None,
+    ops: Sequence[DiffOperation] | None = None,
     migration_dir: str | Path = _DEFAULT_MIGRATION_DIR,
 ) -> Path:
     migration = Migration(revision=_generate_revision(), name=name)
