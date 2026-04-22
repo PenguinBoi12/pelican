@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, replace
 
 from .schema import (
@@ -8,6 +9,20 @@ from .schema import (
     SchemaCheckConstraint,
     SchemaEnum,
 )
+
+
+class DiffOperation(ABC):
+    @abstractmethod
+    def apply(self, state: SchemaState) -> SchemaState: ...
+
+    @abstractmethod
+    def render_up(self) -> list[str]: ...
+
+    @abstractmethod
+    def render_down(self) -> list[str]: ...
+
+    @abstractmethod
+    def __str__(self) -> str: ...
 
 
 def _extract_length(type_str: str) -> int | None:
@@ -85,7 +100,7 @@ def _render_table_block(table: SchemaTable) -> list[str]:
 
 
 @dataclass
-class CreateTable:
+class CreateTable(DiffOperation):
     table: SchemaTable
 
     def __str__(self) -> str:
@@ -102,7 +117,7 @@ class CreateTable:
 
 
 @dataclass
-class DropTable:
+class DropTable(DiffOperation):
     table: SchemaTable
 
     def __str__(self) -> str:
@@ -121,7 +136,7 @@ class DropTable:
 
 
 @dataclass
-class AddColumn:
+class AddColumn(DiffOperation):
     table_name: str
     column: SchemaColumn
 
@@ -149,7 +164,7 @@ class AddColumn:
 
 
 @dataclass
-class DropColumn:
+class DropColumn(DiffOperation):
     table_name: str
     column: SchemaColumn
 
@@ -179,7 +194,7 @@ class DropColumn:
 
 
 @dataclass
-class RenameColumn:
+class RenameColumn(DiffOperation):
     table_name: str
     old_name: str
     new_name: str
@@ -227,7 +242,7 @@ class RenameColumn:
 
 
 @dataclass
-class AlterColumnType:
+class AlterColumnType(DiffOperation):
     table_name: str
     column_name: str
     old_type: str
@@ -271,7 +286,7 @@ class AlterColumnType:
 
 
 @dataclass
-class AlterColumnNullable:
+class AlterColumnNullable(DiffOperation):
     table_name: str
     column_name: str
     old_nullable: bool
@@ -311,7 +326,7 @@ class AlterColumnNullable:
 
 
 @dataclass
-class AlterColumnServerDefault:
+class AlterColumnServerDefault(DiffOperation):
     table_name: str
     column_name: str
     old_server_default: str | None
@@ -361,7 +376,7 @@ class AlterColumnServerDefault:
 
 
 @dataclass
-class CreateIndex:
+class CreateIndex(DiffOperation):
     table_name: str
     index: SchemaIndex
 
@@ -392,7 +407,7 @@ class CreateIndex:
 
 
 @dataclass
-class DropIndex:
+class DropIndex(DiffOperation):
     table_name: str
     index: SchemaIndex
 
@@ -425,7 +440,7 @@ class DropIndex:
 
 
 @dataclass
-class AddCheckConstraint:
+class AddCheckConstraint(DiffOperation):
     table_name: str
     constraint: SchemaCheckConstraint
 
@@ -457,7 +472,7 @@ class AddCheckConstraint:
 
 
 @dataclass
-class DropCheckConstraint:
+class DropCheckConstraint(DiffOperation):
     table_name: str
     constraint: SchemaCheckConstraint
 
@@ -494,7 +509,7 @@ class DropCheckConstraint:
 
 
 @dataclass
-class CreateEnum:
+class CreateEnum(DiffOperation):
     enum: SchemaEnum
 
     def __str__(self) -> str:
@@ -513,7 +528,7 @@ class CreateEnum:
 
 
 @dataclass
-class DropEnum:
+class DropEnum(DiffOperation):
     enum: SchemaEnum
 
     def __str__(self) -> str:
@@ -534,7 +549,7 @@ class DropEnum:
 
 
 @dataclass
-class AddEnumValue:
+class AddEnumValue(DiffOperation):
     enum_name: str
     value: str
 
@@ -566,7 +581,7 @@ class AddEnumValue:
 
 
 @dataclass
-class RemoveEnumValue:
+class RemoveEnumValue(DiffOperation):
     enum_name: str
     value: str
 
@@ -595,23 +610,3 @@ class RemoveEnumValue:
         return [
             f"# WARNING: re-adding enum value {self.value!r} to {self.enum_name} — check ordering."
         ]
-
-
-type DiffOperation = (
-    CreateTable
-    | DropTable
-    | AddColumn
-    | DropColumn
-    | RenameColumn
-    | AlterColumnType
-    | AlterColumnNullable
-    | AlterColumnServerDefault
-    | CreateIndex
-    | DropIndex
-    | AddCheckConstraint
-    | DropCheckConstraint
-    | CreateEnum
-    | DropEnum
-    | AddEnumValue
-    | RemoveEnumValue
-)
