@@ -1,6 +1,7 @@
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
 from sqlalchemy.sql.sqltypes import Enum as SAEnum
+from sqlalchemy.types import TypeEngine
 
 from .base import DialectInspector
 from ..schema import SchemaEnum
@@ -24,7 +25,9 @@ class PostgreSQLInspector(DialectInspector):
 
         return [SchemaEnum(name=name, values=values) for name, values in enums.items()]
 
-    def extract_column_enums(self, col_type, col_name: str) -> dict[str, list[str]]:
+    def extract_column_enums(
+        self, col_type: TypeEngine, col_name: str
+    ) -> dict[str, list[str]]:
         if isinstance(col_type, SAEnum) and col_type.name:
             return {col_type.name: list(col_type.enums)}
         return {}

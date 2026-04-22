@@ -42,7 +42,9 @@ def diff(current: SchemaState, desired: SchemaState) -> DiffResult:
     all_ops.extend(_diff_enums(current, desired))
     all_ops.extend(_diff_tables(current, desired))
     renames = [op for op in all_ops if isinstance(op, RenameColumn)]
-    ops = [op for op in all_ops if not isinstance(op, RenameColumn)]
+    ops: list[DiffOperation] = [
+        op for op in all_ops if not isinstance(op, RenameColumn)
+    ]
     return DiffResult(ops=ops, renames=renames)
 
 

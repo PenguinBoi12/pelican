@@ -1,5 +1,4 @@
 from dataclasses import dataclass, replace
-from types import UnionType
 
 from .schema import (
     SchemaState,
@@ -9,9 +8,6 @@ from .schema import (
     SchemaCheckConstraint,
     SchemaEnum,
 )
-
-INDENT = "    "
-_BODY_INDENT = INDENT * 2
 
 
 def _extract_length(type_str: str) -> int | None:
@@ -77,16 +73,14 @@ def render_column_call(col: SchemaColumn) -> str:
 
 
 def _render_table_block(table: SchemaTable) -> list[str]:
-    lines = [f"{INDENT}with create_table({table.name!r}) as t:"]
+    lines = [f"with create_table({table.name!r}) as t:"]
     for col in table.columns:
         if col.primary_key:
             continue
-        lines.append(f"{_BODY_INDENT}{render_column_call(col)}")
+        lines.append(f"    {render_column_call(col)}")
     for idx in table.indexes:
         unique_part = ", unique=True" if idx.unique else ""
-        lines.append(
-            f"{_BODY_INDENT}t.index({idx.columns!r}, name={idx.name!r}{unique_part})"
-        )
+        lines.append(f"    t.index({idx.columns!r}, name={idx.name!r}{unique_part})")
     return lines
 
 
@@ -104,7 +98,7 @@ class CreateTable:
         return _render_table_block(self.table)
 
     def render_down(self) -> list[str]:
-        return [f"{INDENT}drop_table({self.table.name!r})"]
+        return [f"drop_table({self.table.name!r})"]
 
 
 @dataclass
@@ -120,7 +114,7 @@ class DropTable:
         )
 
     def render_up(self) -> list[str]:
-        return [f"{INDENT}drop_table({self.table.name!r})"]
+        return [f"drop_table({self.table.name!r})"]
 
     def render_down(self) -> list[str]:
         return _render_table_block(self.table)
@@ -147,11 +141,11 @@ class AddColumn:
             ],
         )
 
-    def render_up(self) -> str:
-        return f"{_BODY_INDENT}{render_column_call(self.column)}"
+    def render_up(self) -> list[str]:
+        return [render_column_call(self.column)]
 
-    def render_down(self) -> str:
-        return f"{_BODY_INDENT}t.drop({self.column.name!r})"
+    def render_down(self) -> list[str]:
+        return [f"t.drop({self.column.name!r})"]
 
 
 @dataclass
@@ -177,11 +171,11 @@ class DropColumn:
             ],
         )
 
-    def render_up(self) -> str:
-        return f"{_BODY_INDENT}t.drop({self.column.name!r})"
+    def render_up(self) -> list[str]:
+        return [f"t.drop({self.column.name!r})"]
 
-    def render_down(self) -> str:
-        return f"{_BODY_INDENT}{render_column_call(self.column)}"
+    def render_down(self) -> list[str]:
+        return [render_column_call(self.column)]
 
 
 @dataclass
@@ -225,11 +219,11 @@ class RenameColumn:
             ],
         )
 
-    def render_up(self) -> str:
-        return f"{_BODY_INDENT}t.rename({self.old_name!r}, {self.new_name!r})"
+    def render_up(self) -> list[str]:
+        return [f"t.rename({self.old_name!r}, {self.new_name!r})"]
 
-    def render_down(self) -> str:
-        return f"{_BODY_INDENT}t.rename({self.new_name!r}, {self.old_name!r})"
+    def render_down(self) -> list[str]:
+        return [f"t.rename({self.new_name!r}, {self.old_name!r})"]
 
 
 @dataclass
@@ -265,11 +259,15 @@ class AlterColumnType:
             ],
         )
 
-    def render_up(self) -> str:
-        return f"{_BODY_INDENT}t.alter({self.column_name!r}, new_type={_type_to_call(self.new_type)})"
+    def render_up(self) -> list[str]:
+        return [
+            f"t.alter({self.column_name!r}, new_type={_type_to_call(self.new_type)})"
+        ]
 
-    def render_down(self) -> str:
-        return f"{_BODY_INDENT}t.alter({self.column_name!r}, new_type={_type_to_call(self.old_type)})"
+    def render_down(self) -> list[str]:
+        return [
+            f"t.alter({self.column_name!r}, new_type={_type_to_call(self.old_type)})"
+        ]
 
 
 @dataclass
@@ -305,11 +303,11 @@ class AlterColumnNullable:
             ],
         )
 
-    def render_up(self) -> str:
-        return f"{_BODY_INDENT}t.alter({self.column_name!r}, nullable={self.new_nullable!r})"
+    def render_up(self) -> list[str]:
+        return [f"t.alter({self.column_name!r}, nullable={self.new_nullable!r})"]
 
-    def render_down(self) -> str:
-        return f"{_BODY_INDENT}t.alter({self.column_name!r}, nullable={self.old_nullable!r})"
+    def render_down(self) -> list[str]:
+        return [f"t.alter({self.column_name!r}, nullable={self.old_nullable!r})"]
 
 
 @dataclass
@@ -345,21 +343,21 @@ class AlterColumnServerDefault:
             ],
         )
 
-    def render_up(self) -> str:
+    def render_up(self) -> list[str]:
         val = (
             f"text({self.new_server_default!r})"
             if self.new_server_default is not None
             else "None"
         )
-        return f"{_BODY_INDENT}t.alter({self.column_name!r}, server_default={val})"
+        return [f"t.alter({self.column_name!r}, server_default={val})"]
 
-    def render_down(self) -> str:
+    def render_down(self) -> list[str]:
         val = (
             f"text({self.old_server_default!r})"
             if self.old_server_default is not None
             else "None"
         )
-        return f"{_BODY_INDENT}t.alter({self.column_name!r}, server_default={val})"
+        return [f"t.alter({self.column_name!r}, server_default={val})"]
 
 
 @dataclass
@@ -383,12 +381,14 @@ class CreateIndex:
             ],
         )
 
-    def render_up(self) -> str:
+    def render_up(self) -> list[str]:
         unique_part = ", unique=True" if self.index.unique else ""
-        return f"{_BODY_INDENT}t.index({self.index.columns!r}, name={self.index.name!r}{unique_part})"
+        return [
+            f"t.index({self.index.columns!r}, name={self.index.name!r}{unique_part})"
+        ]
 
-    def render_down(self) -> str:
-        return f"{_BODY_INDENT}t.remove_index(name={self.index.name!r})"
+    def render_down(self) -> list[str]:
+        return [f"t.remove_index(name={self.index.name!r})"]
 
 
 @dataclass
@@ -414,12 +414,14 @@ class DropIndex:
             ],
         )
 
-    def render_up(self) -> str:
-        return f"{_BODY_INDENT}t.remove_index(name={self.index.name!r})"
+    def render_up(self) -> list[str]:
+        return [f"t.remove_index(name={self.index.name!r})"]
 
-    def render_down(self) -> str:
+    def render_down(self) -> list[str]:
         unique_part = ", unique=True" if self.index.unique else ""
-        return f"{_BODY_INDENT}t.index({self.index.columns!r}, name={self.index.name!r}{unique_part})"
+        return [
+            f"t.index({self.index.columns!r}, name={self.index.name!r}{unique_part})"
+        ]
 
 
 @dataclass
@@ -445,11 +447,13 @@ class AddCheckConstraint:
             ],
         )
 
-    def render_up(self) -> str:
-        return f"{_BODY_INDENT}# TODO: add check constraint {self.constraint.name!r}: {self.constraint.expression}"
+    def render_up(self) -> list[str]:
+        return [
+            f"# TODO: add check constraint {self.constraint.name!r}: {self.constraint.expression}"
+        ]
 
-    def render_down(self) -> str:
-        return f"{_BODY_INDENT}# TODO: drop check constraint {self.constraint.name!r}"
+    def render_down(self) -> list[str]:
+        return [f"# TODO: drop check constraint {self.constraint.name!r}"]
 
 
 @dataclass
@@ -480,11 +484,13 @@ class DropCheckConstraint:
             ],
         )
 
-    def render_up(self) -> str:
-        return f"{_BODY_INDENT}# TODO: drop check constraint {self.constraint.name!r}"
+    def render_up(self) -> list[str]:
+        return [f"# TODO: drop check constraint {self.constraint.name!r}"]
 
-    def render_down(self) -> str:
-        return f"{_BODY_INDENT}# TODO: re-add check constraint {self.constraint.name!r}: {self.constraint.expression}"
+    def render_down(self) -> list[str]:
+        return [
+            f"# TODO: re-add check constraint {self.constraint.name!r}: {self.constraint.expression}"
+        ]
 
 
 @dataclass
@@ -499,11 +505,11 @@ class CreateEnum:
 
     def render_up(self) -> list[str]:
         return [
-            f"{INDENT}# TODO: CREATE TYPE {self.enum.name} AS ENUM {tuple(self.enum.values)!r}"
+            f"# TODO: CREATE TYPE {self.enum.name} AS ENUM {tuple(self.enum.values)!r}"
         ]
 
     def render_down(self) -> list[str]:
-        return [f"{INDENT}# TODO: DROP TYPE {self.enum.name}"]
+        return [f"# TODO: DROP TYPE {self.enum.name}"]
 
 
 @dataclass
@@ -519,11 +525,11 @@ class DropEnum:
         )
 
     def render_up(self) -> list[str]:
-        return [f"{INDENT}# TODO: DROP TYPE {self.enum.name}"]
+        return [f"# TODO: DROP TYPE {self.enum.name}"]
 
     def render_down(self) -> list[str]:
         return [
-            f"{INDENT}# TODO: CREATE TYPE {self.enum.name} AS ENUM {tuple(self.enum.values)!r}"
+            f"# TODO: CREATE TYPE {self.enum.name} AS ENUM {tuple(self.enum.values)!r}"
         ]
 
 
@@ -550,12 +556,12 @@ class AddEnumValue:
 
     def render_up(self) -> list[str]:
         return [
-            f"{INDENT}# ALTER TYPE {self.enum_name} ADD VALUE {self.value!r}  # Postgres: safe append"
+            f"# ALTER TYPE {self.enum_name} ADD VALUE {self.value!r}  # Postgres: safe append"
         ]
 
     def render_down(self) -> list[str]:
         return [
-            f"{INDENT}# WARNING: removing enum value {self.value!r} from {self.enum_name} in rollback requires a table rewrite."
+            f"# WARNING: removing enum value {self.value!r} from {self.enum_name} in rollback requires a table rewrite."
         ]
 
 
@@ -582,16 +588,16 @@ class RemoveEnumValue:
 
     def render_up(self) -> list[str]:
         return [
-            f"{INDENT}# WARNING: removing enum value {self.value!r} from {self.enum_name} requires a table rewrite. Implement manually."
+            f"# WARNING: removing enum value {self.value!r} from {self.enum_name} requires a table rewrite. Implement manually."
         ]
 
     def render_down(self) -> list[str]:
         return [
-            f"{INDENT}# WARNING: re-adding enum value {self.value!r} to {self.enum_name} — check ordering."
+            f"# WARNING: re-adding enum value {self.value!r} to {self.enum_name} — check ordering."
         ]
 
 
-DiffOperation: UnionType = (
+type DiffOperation = (
     CreateTable
     | DropTable
     | AddColumn

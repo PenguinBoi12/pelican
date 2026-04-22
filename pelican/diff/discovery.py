@@ -37,7 +37,7 @@ def _find_metadata(module: ModuleType) -> MetaData | None:
         seen.add(id(metadata))
         for table in metadata.tables.values():
             if table.name not in combined.tables:
-                table.tometadata(combined, schema=table.schema)
+                table.tometadata(combined)
 
     for _name, obj in inspect.getmembers(module, inspect.isclass):
         if obj.__module__ != module.__name__:

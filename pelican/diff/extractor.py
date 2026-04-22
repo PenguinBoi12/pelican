@@ -1,8 +1,11 @@
+from typing import cast
+
 from sqlalchemy import MetaData
 from sqlalchemy.engine import Dialect
-from sqlalchemy.sql.schema import CheckConstraint, ForeignKeyConstraint
+from sqlalchemy.sql.schema import CheckConstraint, Column, ForeignKeyConstraint, Table
 
 from .dialects import inspector_for
+from .dialects.base import DialectInspector
 from .schema import (
     SchemaState,
     SchemaTable,
@@ -39,7 +42,7 @@ def extract_from_metadata(metadata: MetaData, dialect: Dialect) -> SchemaState:
 
 
 def _extract_table(
-    table, dialect: Dialect, dialect_inspector
+    table: Table, dialect: Dialect, dialect_inspector: DialectInspector
 ) -> tuple[SchemaTable, dict[str, list[str]]]:
     enums: dict[str, list[str]] = {}
     pk_cols = {col.name for col in table.primary_key.columns}
@@ -85,7 +88,7 @@ def _extract_table(
             expr = str(constraint.sqltext)
             check_constraints.append(
                 SchemaCheckConstraint(
-                    name=constraint.name,
+                    name=cast(str | None, constraint.name),
                     expression=normalize_check_expression(expr),
                 )
             )
@@ -96,7 +99,7 @@ def _extract_table(
                 on_delete = constraint.ondelete
                 foreign_keys.append(
                     SchemaForeignKey(
-                        name=constraint.name,
+                        name=cast(str | None, constraint.name),
                         columns=[col.name for col in constraint.columns],
                         ref_table=ref_table,
                         ref_columns=ref_columns,
@@ -116,7 +119,7 @@ def _extract_table(
     )
 
 
-def _extract_server_default(col) -> str | None:
+def _extract_server_default(col: Column) -> str | None:
     sd = col.server_default
     if sd is None:
         return None
@@ -124,7 +127,7 @@ def _extract_server_default(col) -> str | None:
     if hasattr(sd, "arg"):
         arg = sd.arg
         if hasattr(arg, "text"):
-            return arg.text
+            return str(arg.text)
         return str(arg)
     # FetchedValue (DB-controlled, no expression available)
     return None

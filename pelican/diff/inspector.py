@@ -1,7 +1,8 @@
 from sqlalchemy import inspect
-from sqlalchemy.engine import Engine
+from sqlalchemy.engine import Engine, Inspector
 
 from .dialects import inspector_for
+from .dialects.base import DialectInspector
 from .schema import (
     SchemaState,
     SchemaTable,
@@ -35,7 +36,9 @@ def introspect_live_db(engine: Engine) -> SchemaState:
     return SchemaState(dialect=dialect_name, tables=tables, enums=enums)
 
 
-def _inspect_table(inspector, dialect, table_name: str) -> SchemaTable:
+def _inspect_table(
+    inspector: Inspector, dialect: DialectInspector, table_name: str
+) -> SchemaTable:
     pk_cols = set(
         inspector.get_pk_constraint(table_name).get("constrained_columns", [])
     )
