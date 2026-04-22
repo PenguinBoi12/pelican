@@ -181,19 +181,12 @@ def _confirm_renames(renames: list) -> list:
     required=True,
     help="Import path to your models module (e.g. myapp.models)",
 )
-@option(
-    "--force",
-    is_flag=True,
-    default=False,
-    help="Write migration even if validation finds discrepancies",
-)
-def autogenerate(name: str, models_path: str, force: bool) -> None:
+def autogenerate(name: str, models_path: str) -> None:
     """Autogenerate a migration by diffing your models against the live database."""
     from .diff.discovery import load_target_metadata
     from .diff.extractor import extract_from_metadata
     from .diff.inspector import introspect_live_db
     from .diff.differ import diff
-    from .diff.validator import validate
     from .generator import generate_migration
 
     db_runner = get_runner()
@@ -220,17 +213,6 @@ def autogenerate(name: str, models_path: str, force: bool) -> None:
         return
 
     ops = diff_result.ops + _confirm_renames(diff_result.renames)
-
-    result = validate(current, desired, ops)
-    if not result.is_valid:
-        echo(style("✗", fg="red") + " Validation failed. Migration not written.")
-        echo("  After applying, the following would still differ from your models:")
-        for disc in result.discrepancies:
-            echo(f"    {disc}")
-        if not force:
-            echo(f"\n  Run with {style('--force', bold=True)} to write anyway.")
-            sys.exit(1)
-        echo(style("  Writing anyway (--force).", fg="yellow"))
 
     echo("\nDetecting changes...\n")
     for op in ops:
