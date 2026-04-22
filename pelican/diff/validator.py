@@ -18,5 +18,5 @@ def validate(
     ops: list[DiffOperation],
 ) -> ValidationResult:
     simulated = reduce(lambda s, op: op.apply(s), ops, current)
-    remaining = _diff(simulated, desired)
+    remaining = _diff(simulated, desired).all_ops()
     return ValidationResult(is_valid=not remaining, discrepancies=remaining)

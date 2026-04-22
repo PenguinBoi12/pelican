@@ -51,7 +51,7 @@ def test_validate__with_correct_ops__expect_valid() -> None:
             _col("email", "VARCHAR(255)", position=1),
         )
     )
-    ops = diff(current, desired)
+    ops = diff(current, desired).all_ops()
     result = validate(current, desired, ops)
     assert result.is_valid is True
     assert result.discrepancies == []
@@ -68,7 +68,7 @@ def test_validate__with_rename__expect_valid() -> None:
     after = SchemaColumn("username", "VARCHAR(255)", False, False, False, None, 1)
     current = _state(_table("users", _col("id", "INTEGER", position=0), before))
     desired = _state(_table("users", _col("id", "INTEGER", position=0), after))
-    ops = diff(current, desired)
+    ops = diff(current, desired).all_ops()
     result = validate(current, desired, ops)
     assert result.is_valid is True
 
@@ -100,7 +100,7 @@ def test_validate__add_then_drop__expect_valid() -> None:
     col_b = _col("b", "TEXT", position=1)
     current = _state(_table("users", col_a, col_b))
     desired = _state(_table("users", col_a))
-    ops = diff(current, desired)
+    ops = diff(current, desired).all_ops()
     result = validate(current, desired, ops)
     assert result.is_valid is True
 
@@ -110,6 +110,6 @@ def test_validate__does_not_mutate_current_state() -> None:
     desired = _state(
         _table("users", _col("id", "INTEGER"), _col("email", "VARCHAR(255)"))
     )
-    ops = diff(current, desired)
+    ops = diff(current, desired).all_ops()
     validate(current, desired, ops)
     assert len(current.tables[0].columns) == 1

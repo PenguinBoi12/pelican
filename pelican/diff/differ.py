@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from difflib import SequenceMatcher
 
 from .schema import SchemaState, SchemaTable, SchemaColumn
@@ -24,11 +25,25 @@ from .operations import (
 _RENAME_THRESHOLD = 0.7
 
 
-def diff(current: SchemaState, desired: SchemaState) -> list[DiffOperation]:
-    ops: list[DiffOperation] = []
-    ops.extend(_diff_enums(current, desired))
-    ops.extend(_diff_tables(current, desired))
-    return ops
+@dataclass
+class DiffResult:
+    ops: list[DiffOperation]
+    renames: list[RenameColumn]
+
+    def all_ops(self) -> list[DiffOperation]:
+        return [*self.ops, *self.renames]
+
+    def __bool__(self) -> bool:
+        return bool(self.ops or self.renames)
+
+
+def diff(current: SchemaState, desired: SchemaState) -> DiffResult:
+    all_ops: list[DiffOperation] = []
+    all_ops.extend(_diff_enums(current, desired))
+    all_ops.extend(_diff_tables(current, desired))
+    renames = [op for op in all_ops if isinstance(op, RenameColumn)]
+    ops = [op for op in all_ops if not isinstance(op, RenameColumn)]
+    return DiffResult(ops=ops, renames=renames)
 
 
 def _diff_enums(current: SchemaState, desired: SchemaState) -> list[DiffOperation]:
@@ -164,7 +179,16 @@ def _detect_renames(
     for score, dis, app in pairs:
         if dis.name in matched_dis or app.name in matched_app:
             continue
-        renames.append(RenameColumn(table_name, dis.name, app.name, confidence=score))
+        renames.append(
+            RenameColumn(
+                table_name=table_name,
+                old_name=dis.name,
+                new_name=app.name,
+                confidence=score,
+                old_col=dis,
+                new_col=app,
+            )
+        )
         matched_dis.add(dis.name)
         matched_app.add(app.name)
 

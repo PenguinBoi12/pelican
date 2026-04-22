@@ -39,7 +39,9 @@ def _col(
 
 
 def _render(ops) -> str:
-    return _render_autogenerate_body(ops, Migration(revision=20260421000000, name="test_migration"))
+    return _render_autogenerate_body(
+        ops, Migration(revision=20260421000000, name="test_migration")
+    )
 
 
 def _up(ops) -> str:
@@ -95,13 +97,31 @@ def test_render_migration__with_drop_column__expect_column_restored_in_down() ->
 
 
 def test_render_migration__with_rename__expect_rename_in_up() -> None:
-    ops = [RenameColumn("users", "user_name", "username", confidence=0.95)]
+    ops = [
+        RenameColumn(
+            "users",
+            "user_name",
+            "username",
+            confidence=0.95,
+            old_col=_col("user_name"),
+            new_col=_col("username"),
+        )
+    ]
     up = _up(ops)
     assert "t.rename('user_name', 'username')" in up
 
 
 def test_render_migration__with_rename__expect_reverse_rename_in_down() -> None:
-    ops = [RenameColumn("users", "user_name", "username", confidence=0.95)]
+    ops = [
+        RenameColumn(
+            "users",
+            "user_name",
+            "username",
+            confidence=0.95,
+            old_col=_col("user_name"),
+            new_col=_col("username"),
+        )
+    ]
     down = _down(ops)
     assert "t.rename('username', 'user_name')" in down
 

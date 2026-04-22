@@ -159,36 +159,17 @@ def status() -> None:
     echo()
 
 
-def _confirm_renames(ops: list, current, desired) -> list:
-    from .diff.operations import RenameColumn, DropColumn, AddColumn
-
+def _confirm_renames(renames: list) -> list:
     confirmed = []
-    for op in ops:
-        if isinstance(op, RenameColumn) and op.confidence < 1.0:
-            pct = int(op.confidence * 100)
-            choice = click.prompt(
-                f"  Rename detected: {op.table_name}.{op.old_name} → {op.new_name} "
-                f"[{pct}% confidence]. Apply as rename?",
-                type=click.Choice(["y", "n", "drop+add"], case_sensitive=False),
-                default="y",
-            )
-            if choice.lower() == "n":
-                continue
-            if choice.lower() == "drop+add":
-                cur_col = next(
-                    (c for t in current.tables if t.name == op.table_name for c in t.columns if c.name == op.old_name),
-                    None,
-                )
-                des_col = next(
-                    (c for t in desired.tables if t.name == op.table_name for c in t.columns if c.name == op.new_name),
-                    None,
-                )
-                if cur_col:
-                    confirmed.append(DropColumn(op.table_name, cur_col))
-                if des_col:
-                    confirmed.append(AddColumn(op.table_name, des_col))
-                continue
-        confirmed.append(op)
+    for rename in renames:
+        if click.confirm(
+            f"Did you rename '{rename.old_name}' to '{rename.new_name}'"
+            f" in table '{rename.table_name}'?",
+            default=False,
+        ):
+            confirmed.append(rename)
+        else:
+            confirmed.extend(rename.to_drop_add())
     return confirmed
 
 
@@ -232,13 +213,13 @@ def autogenerate(name: str, models_path: str, force: bool) -> None:
 
     desired = extract_from_metadata(metadata, db_runner.engine.dialect)
     current = introspect_live_db(db_runner.engine)
-    ops = diff(current, desired)
+    diff_result = diff(current, desired)
 
-    if not ops:
+    if not diff_result:
         echo("No changes detected.")
         return
 
-    ops = _confirm_renames(ops, current, desired)
+    ops = diff_result.ops + _confirm_renames(diff_result.renames)
 
     result = validate(current, desired, ops)
     if not result.is_valid:
@@ -257,7 +238,9 @@ def autogenerate(name: str, models_path: str, force: bool) -> None:
 
     migration_file = generate_migration(name, ops=ops)
     echo(f"\nGenerated {migration_file}")
-    echo(style("Tip:", fg="cyan") + " Review the migration before running 'pelican up'.")
+    echo(
+        style("Tip:", fg="cyan") + " Review the migration before running 'pelican up'."
+    )
 
 
 if __name__ == "__main__":

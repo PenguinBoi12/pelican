@@ -189,11 +189,18 @@ class RenameColumn:
     table_name: str
     old_name: str
     new_name: str
-    confidence: float  # 1.0 = explicit hint, <1.0 = heuristic
+    confidence: float
+    old_col: "SchemaColumn"
+    new_col: "SchemaColumn"
 
     def __str__(self) -> str:
         pct = int(self.confidence * 100)
         return f"~ {self.table_name}: rename column {self.old_name} → {self.new_name} [{pct}% confidence]"
+
+    def to_drop_add(self) -> "tuple[DropColumn, AddColumn]":
+        return DropColumn(self.table_name, self.old_col), AddColumn(
+            self.table_name, self.new_col
+        )
 
     def apply(self, state: SchemaState) -> SchemaState:
         return replace(
