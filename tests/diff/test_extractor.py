@@ -112,7 +112,10 @@ def test_extract_from_metadata__expect_check_constraint_extracted() -> None:
 
     state = extract_from_metadata(metadata, _DIALECT)
     products = next(t for t in state.tables if t.name == "products")
-    cc = next((c for c in products.check_constraints if c.name == "products_price_positive"), None)
+    cc = next(
+        (c for c in products.check_constraints if c.name == "products_price_positive"),
+        None,
+    )
     assert cc is not None
     assert cc.expression == "price > 0"
 

@@ -1,6 +1,5 @@
 import re
 
-
 _TYPE_ALIASES: list[tuple[str, str]] = [
     # Must come before shorter aliases that would partial-match
     (r"CHARACTER VARYING", "VARCHAR"),

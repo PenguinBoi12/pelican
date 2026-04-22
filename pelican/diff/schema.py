@@ -4,12 +4,12 @@ from dataclasses import dataclass, field
 @dataclass
 class SchemaColumn:
     name: str
-    type: str          # normalized canonical string
+    type: str  # normalized canonical string
     nullable: bool
     primary_key: bool
     autoincrement: bool
     server_default: str | None
-    position: int      # ordinal, used by rename heuristic
+    position: int  # ordinal, used by rename heuristic
 
 
 @dataclass
@@ -22,7 +22,7 @@ class SchemaIndex:
 @dataclass
 class SchemaCheckConstraint:
     name: str | None
-    expression: str    # normalized
+    expression: str  # normalized
 
 
 @dataclass

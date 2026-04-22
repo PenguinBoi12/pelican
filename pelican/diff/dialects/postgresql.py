@@ -9,18 +9,14 @@ from ..schema import SchemaEnum
 class PostgreSQLInspector(DialectInspector):
     def get_enums(self, engine: Engine) -> list[SchemaEnum]:
         with engine.connect() as conn:
-            rows = conn.execute(
-                text(
-                    """
+            rows = conn.execute(text("""
                     SELECT t.typname AS name, e.enumlabel AS value
                     FROM pg_type t
                     JOIN pg_enum e ON e.enumtypid = t.oid
                     JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace
                     WHERE n.nspname = 'public'
                     ORDER BY t.typname, e.enumsortorder
-                    """
-                )
-            ).fetchall()
+                    """)).fetchall()
 
         enums: dict[str, list[str]] = {}
         for name, value in rows:

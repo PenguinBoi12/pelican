@@ -1,10 +1,17 @@
 from dataclasses import dataclass, replace
+from types import UnionType
 
-from .schema import SchemaState, SchemaTable, SchemaColumn, SchemaIndex, SchemaCheckConstraint, SchemaEnum
+from .schema import (
+    SchemaState,
+    SchemaTable,
+    SchemaColumn,
+    SchemaIndex,
+    SchemaCheckConstraint,
+    SchemaEnum,
+)
 
-_INDENT = "    "
-_BODY_INDENT = _INDENT * 2
-
+INDENT = "    "
+_BODY_INDENT = INDENT * 2
 
 
 def _extract_length(type_str: str) -> int | None:
@@ -19,12 +26,20 @@ def _extract_length(type_str: str) -> int | None:
 def _type_to_method(type_str: str) -> str:
     base = type_str.split("(")[0].upper()
     return {
-        "INTEGER": "integer", "BIGINT": "integer", "SMALLINT": "integer",
-        "FLOAT": "float", "REAL": "float", "DOUBLE": "double",
-        "VARCHAR": "string", "CHAR": "string",
+        "INTEGER": "integer",
+        "BIGINT": "integer",
+        "SMALLINT": "integer",
+        "FLOAT": "float",
+        "REAL": "float",
+        "DOUBLE": "double",
+        "VARCHAR": "string",
+        "CHAR": "string",
         "TEXT": "text",
-        "BOOLEAN": "boolean", "BOOL": "boolean",
-        "DATETIME": "datetime", "TIMESTAMP": "datetime", "TIMESTAMPTZ": "datetime",
+        "BOOLEAN": "boolean",
+        "BOOL": "boolean",
+        "DATETIME": "datetime",
+        "TIMESTAMP": "datetime",
+        "TIMESTAMPTZ": "datetime",
     }.get(base, "string")
 
 
@@ -34,11 +49,17 @@ def _type_to_call(type_str: str) -> str:
     if base in ("VARCHAR", "CHAR") and length:
         return f"String({length})"
     return {
-        "INTEGER": "Integer()", "BIGINT": "BigInteger()", "SMALLINT": "SmallInteger()",
-        "FLOAT": "Float()", "REAL": "Float()", "DOUBLE": "Double()",
+        "INTEGER": "Integer()",
+        "BIGINT": "BigInteger()",
+        "SMALLINT": "SmallInteger()",
+        "FLOAT": "Float()",
+        "REAL": "Float()",
+        "DOUBLE": "Double()",
         "TEXT": "Text()",
         "BOOLEAN": "Boolean()",
-        "DATETIME": "DateTime()", "TIMESTAMP": "DateTime()", "TIMESTAMPTZ": "DateTime(timezone=True)",
+        "DATETIME": "DateTime()",
+        "TIMESTAMP": "DateTime()",
+        "TIMESTAMPTZ": "DateTime(timezone=True)",
     }.get(base, f"Text()  # {type_str}")
 
 
@@ -56,16 +77,17 @@ def render_column_call(col: SchemaColumn) -> str:
 
 
 def _render_table_block(table: SchemaTable) -> list[str]:
-    lines = [f"{_INDENT}with create_table({table.name!r}) as t:"]
+    lines = [f"{INDENT}with create_table({table.name!r}) as t:"]
     for col in table.columns:
         if col.primary_key:
             continue
         lines.append(f"{_BODY_INDENT}{render_column_call(col)}")
     for idx in table.indexes:
         unique_part = ", unique=True" if idx.unique else ""
-        lines.append(f"{_BODY_INDENT}t.index({idx.columns!r}, name={idx.name!r}{unique_part})")
+        lines.append(
+            f"{_BODY_INDENT}t.index({idx.columns!r}, name={idx.name!r}{unique_part})"
+        )
     return lines
-
 
 
 @dataclass
@@ -82,7 +104,7 @@ class CreateTable:
         return _render_table_block(self.table)
 
     def render_down(self) -> list[str]:
-        return [f"{_INDENT}drop_table({self.table.name!r})"]
+        return [f"{INDENT}drop_table({self.table.name!r})"]
 
 
 @dataclass
@@ -93,10 +115,12 @@ class DropTable:
         return f"- Drop table: {self.table.name}"
 
     def apply(self, state: SchemaState) -> SchemaState:
-        return replace(state, tables=[t for t in state.tables if t.name != self.table.name])
+        return replace(
+            state, tables=[t for t in state.tables if t.name != self.table.name]
+        )
 
     def render_up(self) -> list[str]:
-        return [f"{_INDENT}drop_table({self.table.name!r})"]
+        return [f"{INDENT}drop_table({self.table.name!r})"]
 
     def render_down(self) -> list[str]:
         return _render_table_block(self.table)
@@ -111,10 +135,17 @@ class AddColumn:
         return f"~ {self.table_name}: add column {self.column.name} {self.column.type}"
 
     def apply(self, state: SchemaState) -> SchemaState:
-        return replace(state, tables=[
-            replace(t, columns=[*t.columns, self.column]) if t.name == self.table_name else t
-            for t in state.tables
-        ])
+        return replace(
+            state,
+            tables=[
+                (
+                    replace(t, columns=[*t.columns, self.column])
+                    if t.name == self.table_name
+                    else t
+                )
+                for t in state.tables
+            ],
+        )
 
     def render_up(self) -> str:
         return f"{_BODY_INDENT}{render_column_call(self.column)}"
@@ -132,10 +163,19 @@ class DropColumn:
         return f"~ {self.table_name}: drop column {self.column.name}"
 
     def apply(self, state: SchemaState) -> SchemaState:
-        return replace(state, tables=[
-            replace(t, columns=[c for c in t.columns if c.name != self.column.name]) if t.name == self.table_name else t
-            for t in state.tables
-        ])
+        return replace(
+            state,
+            tables=[
+                (
+                    replace(
+                        t, columns=[c for c in t.columns if c.name != self.column.name]
+                    )
+                    if t.name == self.table_name
+                    else t
+                )
+                for t in state.tables
+            ],
+        )
 
     def render_up(self) -> str:
         return f"{_BODY_INDENT}t.drop({self.column.name!r})"
@@ -156,13 +196,27 @@ class RenameColumn:
         return f"~ {self.table_name}: rename column {self.old_name} → {self.new_name} [{pct}% confidence]"
 
     def apply(self, state: SchemaState) -> SchemaState:
-        return replace(state, tables=[
-            replace(t, columns=[
-                replace(c, name=self.new_name) if c.name == self.old_name else c
-                for c in t.columns
-            ]) if t.name == self.table_name else t
-            for t in state.tables
-        ])
+        return replace(
+            state,
+            tables=[
+                (
+                    replace(
+                        t,
+                        columns=[
+                            (
+                                replace(c, name=self.new_name)
+                                if c.name == self.old_name
+                                else c
+                            )
+                            for c in t.columns
+                        ],
+                    )
+                    if t.name == self.table_name
+                    else t
+                )
+                for t in state.tables
+            ],
+        )
 
     def render_up(self) -> str:
         return f"{_BODY_INDENT}t.rename({self.old_name!r}, {self.new_name!r})"
@@ -182,13 +236,27 @@ class AlterColumnType:
         return f"~ {self.table_name}: alter {self.column_name} type {self.old_type} → {self.new_type}"
 
     def apply(self, state: SchemaState) -> SchemaState:
-        return replace(state, tables=[
-            replace(t, columns=[
-                replace(c, type=self.new_type) if c.name == self.column_name else c
-                for c in t.columns
-            ]) if t.name == self.table_name else t
-            for t in state.tables
-        ])
+        return replace(
+            state,
+            tables=[
+                (
+                    replace(
+                        t,
+                        columns=[
+                            (
+                                replace(c, type=self.new_type)
+                                if c.name == self.column_name
+                                else c
+                            )
+                            for c in t.columns
+                        ],
+                    )
+                    if t.name == self.table_name
+                    else t
+                )
+                for t in state.tables
+            ],
+        )
 
     def render_up(self) -> str:
         return f"{_BODY_INDENT}t.alter({self.column_name!r}, new_type={_type_to_call(self.new_type)})"
@@ -208,13 +276,27 @@ class AlterColumnNullable:
         return f"~ {self.table_name}: alter {self.column_name} nullable {self.old_nullable} → {self.new_nullable}"
 
     def apply(self, state: SchemaState) -> SchemaState:
-        return replace(state, tables=[
-            replace(t, columns=[
-                replace(c, nullable=self.new_nullable) if c.name == self.column_name else c
-                for c in t.columns
-            ]) if t.name == self.table_name else t
-            for t in state.tables
-        ])
+        return replace(
+            state,
+            tables=[
+                (
+                    replace(
+                        t,
+                        columns=[
+                            (
+                                replace(c, nullable=self.new_nullable)
+                                if c.name == self.column_name
+                                else c
+                            )
+                            for c in t.columns
+                        ],
+                    )
+                    if t.name == self.table_name
+                    else t
+                )
+                for t in state.tables
+            ],
+        )
 
     def render_up(self) -> str:
         return f"{_BODY_INDENT}t.alter({self.column_name!r}, nullable={self.new_nullable!r})"
@@ -234,20 +316,42 @@ class AlterColumnServerDefault:
         return f"~ {self.table_name}: alter {self.column_name} server_default {self.old_server_default!r} → {self.new_server_default!r}"
 
     def apply(self, state: SchemaState) -> SchemaState:
-        return replace(state, tables=[
-            replace(t, columns=[
-                replace(c, server_default=self.new_server_default) if c.name == self.column_name else c
-                for c in t.columns
-            ]) if t.name == self.table_name else t
-            for t in state.tables
-        ])
+        return replace(
+            state,
+            tables=[
+                (
+                    replace(
+                        t,
+                        columns=[
+                            (
+                                replace(c, server_default=self.new_server_default)
+                                if c.name == self.column_name
+                                else c
+                            )
+                            for c in t.columns
+                        ],
+                    )
+                    if t.name == self.table_name
+                    else t
+                )
+                for t in state.tables
+            ],
+        )
 
     def render_up(self) -> str:
-        val = f"text({self.new_server_default!r})" if self.new_server_default is not None else "None"
+        val = (
+            f"text({self.new_server_default!r})"
+            if self.new_server_default is not None
+            else "None"
+        )
         return f"{_BODY_INDENT}t.alter({self.column_name!r}, server_default={val})"
 
     def render_down(self) -> str:
-        val = f"text({self.old_server_default!r})" if self.old_server_default is not None else "None"
+        val = (
+            f"text({self.old_server_default!r})"
+            if self.old_server_default is not None
+            else "None"
+        )
         return f"{_BODY_INDENT}t.alter({self.column_name!r}, server_default={val})"
 
 
@@ -260,10 +364,17 @@ class CreateIndex:
         return f"~ {self.table_name}: add index {self.index.name}"
 
     def apply(self, state: SchemaState) -> SchemaState:
-        return replace(state, tables=[
-            replace(t, indexes=[*t.indexes, self.index]) if t.name == self.table_name else t
-            for t in state.tables
-        ])
+        return replace(
+            state,
+            tables=[
+                (
+                    replace(t, indexes=[*t.indexes, self.index])
+                    if t.name == self.table_name
+                    else t
+                )
+                for t in state.tables
+            ],
+        )
 
     def render_up(self) -> str:
         unique_part = ", unique=True" if self.index.unique else ""
@@ -282,10 +393,19 @@ class DropIndex:
         return f"~ {self.table_name}: drop index {self.index.name}"
 
     def apply(self, state: SchemaState) -> SchemaState:
-        return replace(state, tables=[
-            replace(t, indexes=[i for i in t.indexes if i.name != self.index.name]) if t.name == self.table_name else t
-            for t in state.tables
-        ])
+        return replace(
+            state,
+            tables=[
+                (
+                    replace(
+                        t, indexes=[i for i in t.indexes if i.name != self.index.name]
+                    )
+                    if t.name == self.table_name
+                    else t
+                )
+                for t in state.tables
+            ],
+        )
 
     def render_up(self) -> str:
         return f"{_BODY_INDENT}t.remove_index(name={self.index.name!r})"
@@ -304,10 +424,19 @@ class AddCheckConstraint:
         return f"~ {self.table_name}: add check constraint {self.constraint.name}"
 
     def apply(self, state: SchemaState) -> SchemaState:
-        return replace(state, tables=[
-            replace(t, check_constraints=[*t.check_constraints, self.constraint]) if t.name == self.table_name else t
-            for t in state.tables
-        ])
+        return replace(
+            state,
+            tables=[
+                (
+                    replace(
+                        t, check_constraints=[*t.check_constraints, self.constraint]
+                    )
+                    if t.name == self.table_name
+                    else t
+                )
+                for t in state.tables
+            ],
+        )
 
     def render_up(self) -> str:
         return f"{_BODY_INDENT}# TODO: add check constraint {self.constraint.name!r}: {self.constraint.expression}"
@@ -325,10 +454,24 @@ class DropCheckConstraint:
         return f"~ {self.table_name}: drop check constraint {self.constraint.name}"
 
     def apply(self, state: SchemaState) -> SchemaState:
-        return replace(state, tables=[
-            replace(t, check_constraints=[c for c in t.check_constraints if c.expression != self.constraint.expression]) if t.name == self.table_name else t
-            for t in state.tables
-        ])
+        return replace(
+            state,
+            tables=[
+                (
+                    replace(
+                        t,
+                        check_constraints=[
+                            c
+                            for c in t.check_constraints
+                            if c.expression != self.constraint.expression
+                        ],
+                    )
+                    if t.name == self.table_name
+                    else t
+                )
+                for t in state.tables
+            ],
+        )
 
     def render_up(self) -> str:
         return f"{_BODY_INDENT}# TODO: drop check constraint {self.constraint.name!r}"
@@ -348,10 +491,12 @@ class CreateEnum:
         return replace(state, enums=[*state.enums, self.enum])
 
     def render_up(self) -> list[str]:
-        return [f"{_INDENT}# TODO: CREATE TYPE {self.enum.name} AS ENUM {tuple(self.enum.values)!r}"]
+        return [
+            f"{INDENT}# TODO: CREATE TYPE {self.enum.name} AS ENUM {tuple(self.enum.values)!r}"
+        ]
 
     def render_down(self) -> list[str]:
-        return [f"{_INDENT}# TODO: DROP TYPE {self.enum.name}"]
+        return [f"{INDENT}# TODO: DROP TYPE {self.enum.name}"]
 
 
 @dataclass
@@ -362,13 +507,17 @@ class DropEnum:
         return f"- Drop enum: {self.enum.name}"
 
     def apply(self, state: SchemaState) -> SchemaState:
-        return replace(state, enums=[e for e in state.enums if e.name != self.enum.name])
+        return replace(
+            state, enums=[e for e in state.enums if e.name != self.enum.name]
+        )
 
     def render_up(self) -> list[str]:
-        return [f"{_INDENT}# TODO: DROP TYPE {self.enum.name}"]
+        return [f"{INDENT}# TODO: DROP TYPE {self.enum.name}"]
 
     def render_down(self) -> list[str]:
-        return [f"{_INDENT}# TODO: CREATE TYPE {self.enum.name} AS ENUM {tuple(self.enum.values)!r}"]
+        return [
+            f"{INDENT}# TODO: CREATE TYPE {self.enum.name} AS ENUM {tuple(self.enum.values)!r}"
+        ]
 
 
 @dataclass
@@ -380,16 +529,27 @@ class AddEnumValue:
         return f"~ enum {self.enum_name}: add value {self.value!r}"
 
     def apply(self, state: SchemaState) -> SchemaState:
-        return replace(state, enums=[
-            replace(e, values=[*e.values, self.value]) if e.name == self.enum_name else e
-            for e in state.enums
-        ])
+        return replace(
+            state,
+            enums=[
+                (
+                    replace(e, values=[*e.values, self.value])
+                    if e.name == self.enum_name
+                    else e
+                )
+                for e in state.enums
+            ],
+        )
 
     def render_up(self) -> list[str]:
-        return [f"{_INDENT}# ALTER TYPE {self.enum_name} ADD VALUE {self.value!r}  # Postgres: safe append"]
+        return [
+            f"{INDENT}# ALTER TYPE {self.enum_name} ADD VALUE {self.value!r}  # Postgres: safe append"
+        ]
 
     def render_down(self) -> list[str]:
-        return [f"{_INDENT}# WARNING: removing enum value {self.value!r} from {self.enum_name} in rollback requires a table rewrite."]
+        return [
+            f"{INDENT}# WARNING: removing enum value {self.value!r} from {self.enum_name} in rollback requires a table rewrite."
+        ]
 
 
 @dataclass
@@ -401,19 +561,30 @@ class RemoveEnumValue:
         return f"~ enum {self.enum_name}: remove value {self.value!r} [WARNING: requires table rewrite]"
 
     def apply(self, state: SchemaState) -> SchemaState:
-        return replace(state, enums=[
-            replace(e, values=[v for v in e.values if v != self.value]) if e.name == self.enum_name else e
-            for e in state.enums
-        ])
+        return replace(
+            state,
+            enums=[
+                (
+                    replace(e, values=[v for v in e.values if v != self.value])
+                    if e.name == self.enum_name
+                    else e
+                )
+                for e in state.enums
+            ],
+        )
 
     def render_up(self) -> list[str]:
-        return [f"{_INDENT}# WARNING: removing enum value {self.value!r} from {self.enum_name} requires a table rewrite. Implement manually."]
+        return [
+            f"{INDENT}# WARNING: removing enum value {self.value!r} from {self.enum_name} requires a table rewrite. Implement manually."
+        ]
 
     def render_down(self) -> list[str]:
-        return [f"{_INDENT}# WARNING: re-adding enum value {self.value!r} to {self.enum_name} — check ordering."]
+        return [
+            f"{INDENT}# WARNING: re-adding enum value {self.value!r} to {self.enum_name} — check ordering."
+        ]
 
 
-DiffOperation = (
+DiffOperation: UnionType = (
     CreateTable
     | DropTable
     | AddColumn

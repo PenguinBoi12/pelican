@@ -10,7 +10,11 @@ from .schema import (
     SchemaCheckConstraint,
     SchemaForeignKey,
 )
-from .normalizer import normalize_type, normalize_server_default, normalize_check_expression
+from .normalizer import (
+    normalize_type,
+    normalize_server_default,
+    normalize_check_expression,
+)
 
 _EXCLUDED_TABLES = {"pelican_migration"}
 
@@ -32,7 +36,9 @@ def introspect_live_db(engine: Engine) -> SchemaState:
 
 
 def _inspect_table(inspector, dialect, table_name: str) -> SchemaTable:
-    pk_cols = set(inspector.get_pk_constraint(table_name).get("constrained_columns", []))
+    pk_cols = set(
+        inspector.get_pk_constraint(table_name).get("constrained_columns", [])
+    )
 
     columns = []
     for position, col in enumerate(inspector.get_columns(table_name)):
@@ -46,7 +52,9 @@ def _inspect_table(inspector, dialect, table_name: str) -> SchemaTable:
                 nullable=col["nullable"],
                 primary_key=col["name"] in pk_cols,
                 autoincrement=bool(col.get("autoincrement", False)),
-                server_default=normalize_server_default(server_default) if server_default else None,
+                server_default=(
+                    normalize_server_default(server_default) if server_default else None
+                ),
                 position=position,
             )
         )
@@ -88,5 +96,3 @@ def _inspect_table(inspector, dialect, table_name: str) -> SchemaTable:
         check_constraints=check_constraints,
         foreign_keys=foreign_keys,
     )
-
-

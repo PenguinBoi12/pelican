@@ -159,10 +159,53 @@ def status() -> None:
     echo()
 
 
+def _confirm_renames(ops: list, current, desired) -> list:
+    from .diff.operations import RenameColumn, DropColumn, AddColumn
+
+    confirmed = []
+    for op in ops:
+        if isinstance(op, RenameColumn) and op.confidence < 1.0:
+            pct = int(op.confidence * 100)
+            choice = click.prompt(
+                f"  Rename detected: {op.table_name}.{op.old_name} → {op.new_name} "
+                f"[{pct}% confidence]. Apply as rename?",
+                type=click.Choice(["y", "n", "drop+add"], case_sensitive=False),
+                default="y",
+            )
+            if choice.lower() == "n":
+                continue
+            if choice.lower() == "drop+add":
+                cur_col = next(
+                    (c for t in current.tables if t.name == op.table_name for c in t.columns if c.name == op.old_name),
+                    None,
+                )
+                des_col = next(
+                    (c for t in desired.tables if t.name == op.table_name for c in t.columns if c.name == op.new_name),
+                    None,
+                )
+                if cur_col:
+                    confirmed.append(DropColumn(op.table_name, cur_col))
+                if des_col:
+                    confirmed.append(AddColumn(op.table_name, des_col))
+                continue
+        confirmed.append(op)
+    return confirmed
+
+
 @cli.command()
 @argument("name", nargs=1)
-@option("--models", "models_path", required=True, help="Import path to your models module (e.g. myapp.models)")
-@option("--force", is_flag=True, default=False, help="Write migration even if validation finds discrepancies")
+@option(
+    "--models",
+    "models_path",
+    required=True,
+    help="Import path to your models module (e.g. myapp.models)",
+)
+@option(
+    "--force",
+    is_flag=True,
+    default=False,
+    help="Write migration even if validation finds discrepancies",
+)
 def autogenerate(name: str, models_path: str, force: bool) -> None:
     """Autogenerate a migration by diffing your models against the live database."""
     from .diff.discovery import load_target_metadata
@@ -170,8 +213,7 @@ def autogenerate(name: str, models_path: str, force: bool) -> None:
     from .diff.inspector import introspect_live_db
     from .diff.differ import diff
     from .diff.validator import validate
-    from .diff.operations import RenameColumn
-    from .generator import generate_migration, render_migration, _generate_revision
+    from .generator import generate_migration
 
     db_runner = get_runner()
     if not db_runner.has_database_url:
@@ -196,37 +238,7 @@ def autogenerate(name: str, models_path: str, force: bool) -> None:
         echo("No changes detected.")
         return
 
-    confirmed_ops = []
-    for op in ops:
-        if isinstance(op, RenameColumn) and op.confidence < 1.0:
-            pct = int(op.confidence * 100)
-            choice = click.prompt(
-                f"  Rename detected: {op.table_name}.{op.old_name} → {op.new_name} "
-                f"[{pct}% confidence]. Apply as rename?",
-                type=click.Choice(["y", "n", "drop+add"], case_sensitive=False),
-                default="y",
-            )
-            if choice.lower() == "n":
-                continue
-            if choice.lower() == "drop+add":
-                from .diff.schema import SchemaColumn
-                cur_col = next(
-                    (c for t in current.tables if t.name == op.table_name for c in t.columns if c.name == op.old_name),
-                    None,
-                )
-                des_col = next(
-                    (c for t in desired.tables if t.name == op.table_name for c in t.columns if c.name == op.new_name),
-                    None,
-                )
-                from .diff.operations import DropColumn, AddColumn
-                if cur_col:
-                    confirmed_ops.append(DropColumn(op.table_name, cur_col))
-                if des_col:
-                    confirmed_ops.append(AddColumn(op.table_name, des_col))
-                continue
-        confirmed_ops.append(op)
-
-    ops = confirmed_ops
+    ops = _confirm_renames(ops, current, desired)
 
     result = validate(current, desired, ops)
     if not result.is_valid:
@@ -243,10 +255,7 @@ def autogenerate(name: str, models_path: str, force: bool) -> None:
     for op in ops:
         echo(f"  {op}")
 
-    revision = _generate_revision()
-    body = render_migration(ops, name, revision)
-    migration_file = generate_migration(name, body=body)
-
+    migration_file = generate_migration(name, ops=ops)
     echo(f"\nGenerated {migration_file}")
     echo(style("Tip:", fg="cyan") + " Review the migration before running 'pelican up'.")
 

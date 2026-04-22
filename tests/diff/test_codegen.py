@@ -1,5 +1,11 @@
 import pytest
-from pelican.diff.schema import SchemaColumn, SchemaTable, SchemaIndex, SchemaCheckConstraint, SchemaEnum
+from pelican.diff.schema import (
+    SchemaColumn,
+    SchemaTable,
+    SchemaIndex,
+    SchemaCheckConstraint,
+    SchemaEnum,
+)
 from pelican.diff.operations import (
     CreateTable,
     DropTable,
@@ -14,17 +20,26 @@ from pelican.diff.operations import (
     AddEnumValue,
     RemoveEnumValue,
 )
-from pelican.generator import render_migration
+from pelican.migration import Migration
+from pelican.generator import _render_autogenerate_body
 
 
-def _col(name: str, type_: str = "VARCHAR(255)", nullable: bool = True, position: int = 0) -> SchemaColumn:
-    return SchemaColumn(name=name, type=type_, nullable=nullable,
-                        primary_key=False, autoincrement=False,
-                        server_default=None, position=position)
+def _col(
+    name: str, type_: str = "VARCHAR(255)", nullable: bool = True, position: int = 0
+) -> SchemaColumn:
+    return SchemaColumn(
+        name=name,
+        type=type_,
+        nullable=nullable,
+        primary_key=False,
+        autoincrement=False,
+        server_default=None,
+        position=position,
+    )
 
 
 def _render(ops) -> str:
-    return render_migration(ops, "test_migration", 20260421000000)
+    return _render_autogenerate_body(ops, Migration(revision=20260421000000, name="test_migration"))
 
 
 def _up(ops) -> str:

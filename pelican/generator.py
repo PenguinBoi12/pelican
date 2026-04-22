@@ -1,47 +1,44 @@
 from datetime import datetime
 from pathlib import Path
+
+from .diff.codegen import render_up, render_down
 from .migration import Migration
 
-TEMPLATE_DIR: Path = Path(__file__).parent / "templates"
+_TEMPLATE_DIR: Path = Path(__file__).parent / "templates"
+_DEFAULT_MIGRATION_DIR: Path = Path("db/migrations/")
 
 
 def _get_template(template_name: str) -> str:
-    return (TEMPLATE_DIR / f"{template_name}.template").read_text()
+    return (_TEMPLATE_DIR / f"{template_name}.template").read_text()
 
 
 def _generate_revision() -> int:
-    """Return a timestamp-based migration number (e.g. 20251003154520)."""
     return int(datetime.now().strftime("%Y%m%d%H%M%S"))
+
+
+def _render_autogenerate_body(ops: list, migration: Migration) -> str:
+    template = _get_template("autogenerate")
+    return template.format(
+        revision=migration.revision,
+        display_name=migration.display_name,
+        up_body=render_up(ops),
+        down_body=render_down(ops),
+    )
 
 
 def generate_migration(
     name: str,
-    body: str | None = None,
-    migration_dir: str | Path = "db/migrations/",
+    ops: list | None = None,
+    migration_dir: str | Path = _DEFAULT_MIGRATION_DIR,
 ) -> Path:
     migration = Migration(revision=_generate_revision(), name=name)
     migration_file = Path(migration_dir) / migration.file_name
     migration_file.parent.mkdir(parents=True, exist_ok=True)
 
-    if body is None:
-        content = _get_template("migration").format(migration=migration)
+    if ops is not None:
+        content = _render_autogenerate_body(ops, migration)
     else:
-        content = body
+        content = _get_template("migration").format(migration=migration)
 
     migration_file.write_text(content)
     return migration_file
-
-
-def render_migration(ops: list, name: str, revision: int) -> str:
-    from .diff.codegen import _render_up, _render_down
-
-    template = _get_template("autogenerate")
-    up_body = _render_up(ops)
-    down_body = _render_down(ops)
-    display_name = name.replace("_", " ").capitalize()
-    return template.format(
-        revision=revision,
-        display_name=display_name,
-        up_body=up_body,
-        down_body=down_body,
-    )

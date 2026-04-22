@@ -81,7 +81,7 @@ def test_normalize_server_default__with_expr__expect_canonical(
         ("(age > 0)", "age > 0"),
         ('"age" > 0', "age > 0"),
         ("  AGE  >  0  ", "age > 0"),
-        ("(\"age\" > 0)", "age > 0"),
+        ('("age" > 0)', "age > 0"),
         ("LENGTH(name) > 0", "length(name) > 0"),
     ],
 )

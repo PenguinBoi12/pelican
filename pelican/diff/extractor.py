@@ -12,7 +12,11 @@ from .schema import (
     SchemaForeignKey,
     SchemaEnum,
 )
-from .normalizer import normalize_type, normalize_server_default, normalize_check_expression
+from .normalizer import (
+    normalize_type,
+    normalize_server_default,
+    normalize_check_expression,
+)
 
 _EXCLUDED_TABLES = {"pelican_migration"}
 
@@ -34,7 +38,9 @@ def extract_from_metadata(metadata: MetaData, dialect: Dialect) -> SchemaState:
     return SchemaState(dialect=dialect_name, tables=tables, enums=schema_enums)
 
 
-def _extract_table(table, dialect: Dialect, dialect_inspector) -> tuple[SchemaTable, dict[str, list[str]]]:
+def _extract_table(
+    table, dialect: Dialect, dialect_inspector
+) -> tuple[SchemaTable, dict[str, list[str]]]:
     enums: dict[str, list[str]] = {}
     pk_cols = {col.name for col in table.primary_key.columns}
 
@@ -54,7 +60,9 @@ def _extract_table(table, dialect: Dialect, dialect_inspector) -> tuple[SchemaTa
                 nullable=col.nullable if col.nullable is not None else True,
                 primary_key=col.name in pk_cols,
                 autoincrement=bool(getattr(col, "autoincrement", False)),
-                server_default=normalize_server_default(server_default) if server_default else None,
+                server_default=(
+                    normalize_server_default(server_default) if server_default else None
+                ),
                 position=position,
             )
         )

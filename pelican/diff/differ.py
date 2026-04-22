@@ -114,10 +114,16 @@ def _diff_column(
     ops: list[DiffOperation] = []
 
     if current.type != desired.type:
-        ops.append(AlterColumnType(table_name, current.name, current.type, desired.type))
+        ops.append(
+            AlterColumnType(table_name, current.name, current.type, desired.type)
+        )
 
     if current.nullable != desired.nullable:
-        ops.append(AlterColumnNullable(table_name, current.name, current.nullable, desired.nullable))
+        ops.append(
+            AlterColumnNullable(
+                table_name, current.name, current.nullable, desired.nullable
+            )
+        )
 
     if current.server_default != desired.server_default:
         ops.append(
@@ -162,13 +168,17 @@ def _detect_renames(
         matched_dis.add(dis.name)
         matched_app.add(app.name)
 
-    remaining_disappeared = [c for c in remaining_disappeared if c.name not in matched_dis]
+    remaining_disappeared = [
+        c for c in remaining_disappeared if c.name not in matched_dis
+    ]
     remaining_appeared = [c for c in remaining_appeared if c.name not in matched_app]
 
     return renames, remaining_disappeared, remaining_appeared
 
 
-def _rename_score(disappeared: SchemaColumn, appeared: SchemaColumn, total_cols: int) -> float:
+def _rename_score(
+    disappeared: SchemaColumn, appeared: SchemaColumn, total_cols: int
+) -> float:
     type_match = 0.40 if disappeared.type == appeared.type else 0.0
     nullable_match = 0.15 if disappeared.nullable == appeared.nullable else 0.0
 

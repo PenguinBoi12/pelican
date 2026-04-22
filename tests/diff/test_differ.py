@@ -28,11 +28,17 @@ from pelican.diff.operations import (
 from pelican.diff.differ import diff
 
 
-def _col(name: str, type_: str = "VARCHAR(255)", nullable: bool = True, position: int = 0) -> SchemaColumn:
+def _col(
+    name: str, type_: str = "VARCHAR(255)", nullable: bool = True, position: int = 0
+) -> SchemaColumn:
     return SchemaColumn(
-        name=name, type=type_, nullable=nullable,
-        primary_key=False, autoincrement=False,
-        server_default=None, position=position,
+        name=name,
+        type=type_,
+        nullable=nullable,
+        primary_key=False,
+        autoincrement=False,
+        server_default=None,
+        position=position,
     )
 
 
@@ -70,13 +76,23 @@ def test_diff__with_dropped_table__expect_drop_table() -> None:
 
 def test_diff__with_added_column__expect_add_column() -> None:
     current = _state(_table("users", _col("id", "INTEGER", position=0)))
-    desired = _state(_table("users", _col("id", "INTEGER", position=0), _col("email", "VARCHAR(255)", position=1)))
+    desired = _state(
+        _table(
+            "users",
+            _col("id", "INTEGER", position=0),
+            _col("email", "VARCHAR(255)", position=1),
+        )
+    )
     ops = diff(current, desired)
     assert any(isinstance(o, AddColumn) and o.column.name == "email" for o in ops)
 
 
 def test_diff__with_dropped_column__expect_drop_column() -> None:
-    current = _state(_table("users", _col("id", "INTEGER", position=0), _col("bio", "TEXT", position=1)))
+    current = _state(
+        _table(
+            "users", _col("id", "INTEGER", position=0), _col("bio", "TEXT", position=1)
+        )
+    )
     desired = _state(_table("users", _col("id", "INTEGER", position=0)))
     ops = diff(current, desired)
     assert any(isinstance(o, DropColumn) and o.column.name == "bio" for o in ops)
@@ -93,16 +109,23 @@ def test_diff__with_nullable_change__expect_alter_column_nullable() -> None:
     current = _state(_table("users", _col("email", nullable=True)))
     desired = _state(_table("users", _col("email", nullable=False)))
     ops = diff(current, desired)
-    assert any(isinstance(o, AlterColumnNullable) and o.column_name == "email" for o in ops)
+    assert any(
+        isinstance(o, AlterColumnNullable) and o.column_name == "email" for o in ops
+    )
 
 
 def test_diff__with_server_default_added__expect_alter_column_server_default() -> None:
     col_before = SchemaColumn("status", "VARCHAR(255)", True, False, False, None, 0)
-    col_after = SchemaColumn("status", "VARCHAR(255)", True, False, False, "'active'", 0)
+    col_after = SchemaColumn(
+        "status", "VARCHAR(255)", True, False, False, "'active'", 0
+    )
     current = _state(_table("users", col_before))
     desired = _state(_table("users", col_after))
     ops = diff(current, desired)
-    assert any(isinstance(o, AlterColumnServerDefault) and o.column_name == "status" for o in ops)
+    assert any(
+        isinstance(o, AlterColumnServerDefault) and o.column_name == "status"
+        for o in ops
+    )
 
 
 def test_diff__with_obvious_rename__expect_rename_column() -> None:
@@ -137,7 +160,9 @@ def test_diff__with_new_index__expect_create_index() -> None:
         tables=[SchemaTable("users", columns=[_col("email")], indexes=[idx])],
     )
     ops = diff(current, desired)
-    assert any(isinstance(o, CreateIndex) and o.index.name == "users_email_idx" for o in ops)
+    assert any(
+        isinstance(o, CreateIndex) and o.index.name == "users_email_idx" for o in ops
+    )
 
 
 def test_diff__with_dropped_index__expect_drop_index() -> None:
@@ -148,7 +173,9 @@ def test_diff__with_dropped_index__expect_drop_index() -> None:
     )
     desired = _state(_table("users", _col("email")))
     ops = diff(current, desired)
-    assert any(isinstance(o, DropIndex) and o.index.name == "users_email_idx" for o in ops)
+    assert any(
+        isinstance(o, DropIndex) and o.index.name == "users_email_idx" for o in ops
+    )
 
 
 def test_diff__with_new_check_constraint__expect_add_check_constraint() -> None:
@@ -156,7 +183,11 @@ def test_diff__with_new_check_constraint__expect_add_check_constraint() -> None:
     current = _state(_table("products", _col("price", "INTEGER")))
     desired = SchemaState(
         dialect="sqlite",
-        tables=[SchemaTable("products", columns=[_col("price", "INTEGER")], check_constraints=[cc])],
+        tables=[
+            SchemaTable(
+                "products", columns=[_col("price", "INTEGER")], check_constraints=[cc]
+            )
+        ],
     )
     ops = diff(current, desired)
     assert any(isinstance(o, AddCheckConstraint) for o in ops)
@@ -166,7 +197,11 @@ def test_diff__with_dropped_check_constraint__expect_drop_check_constraint() -> 
     cc = SchemaCheckConstraint("price_positive", "price > 0")
     current = SchemaState(
         dialect="sqlite",
-        tables=[SchemaTable("products", columns=[_col("price", "INTEGER")], check_constraints=[cc])],
+        tables=[
+            SchemaTable(
+                "products", columns=[_col("price", "INTEGER")], check_constraints=[cc]
+            )
+        ],
     )
     desired = _state(_table("products", _col("price", "INTEGER")))
     ops = diff(current, desired)
@@ -175,27 +210,41 @@ def test_diff__with_dropped_check_constraint__expect_drop_check_constraint() -> 
 
 def test_diff__with_new_enum__expect_create_enum() -> None:
     current = _state()
-    desired = SchemaState(dialect="postgresql", enums=[SchemaEnum("status", ["active", "inactive"])])
+    desired = SchemaState(
+        dialect="postgresql", enums=[SchemaEnum("status", ["active", "inactive"])]
+    )
     ops = diff(current, desired)
     assert any(isinstance(o, CreateEnum) and o.enum.name == "status" for o in ops)
 
 
 def test_diff__with_dropped_enum__expect_drop_enum() -> None:
-    current = SchemaState(dialect="postgresql", enums=[SchemaEnum("status", ["active", "inactive"])])
+    current = SchemaState(
+        dialect="postgresql", enums=[SchemaEnum("status", ["active", "inactive"])]
+    )
     desired = _state()
     ops = diff(current, desired)
     assert any(isinstance(o, DropEnum) and o.enum.name == "status" for o in ops)
 
 
 def test_diff__with_added_enum_value__expect_add_enum_value() -> None:
-    current = SchemaState(dialect="postgresql", enums=[SchemaEnum("status", ["active", "inactive"])])
-    desired = SchemaState(dialect="postgresql", enums=[SchemaEnum("status", ["active", "inactive", "banned"])])
+    current = SchemaState(
+        dialect="postgresql", enums=[SchemaEnum("status", ["active", "inactive"])]
+    )
+    desired = SchemaState(
+        dialect="postgresql",
+        enums=[SchemaEnum("status", ["active", "inactive", "banned"])],
+    )
     ops = diff(current, desired)
     assert any(isinstance(o, AddEnumValue) and o.value == "banned" for o in ops)
 
 
 def test_diff__with_removed_enum_value__expect_remove_enum_value() -> None:
-    current = SchemaState(dialect="postgresql", enums=[SchemaEnum("status", ["active", "inactive", "banned"])])
-    desired = SchemaState(dialect="postgresql", enums=[SchemaEnum("status", ["active", "inactive"])])
+    current = SchemaState(
+        dialect="postgresql",
+        enums=[SchemaEnum("status", ["active", "inactive", "banned"])],
+    )
+    desired = SchemaState(
+        dialect="postgresql", enums=[SchemaEnum("status", ["active", "inactive"])]
+    )
     ops = diff(current, desired)
     assert any(isinstance(o, RemoveEnumValue) and o.value == "banned" for o in ops)
