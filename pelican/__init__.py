@@ -3,7 +3,6 @@
 from .runner import MigrationRunner
 from ._context import use_context, get_runner, get_registry
 from .schema import create_table, change_table, drop_table
-from .schema.hints import renamed_from
 
 from importlib.metadata import version, PackageNotFoundError
 
@@ -21,5 +20,4 @@ __all__ = [
     "create_table",
     "change_table",
     "drop_table",
-    "renamed_from",
 ]

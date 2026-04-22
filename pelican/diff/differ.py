@@ -87,18 +87,11 @@ def _diff_columns(current: SchemaTable, desired: SchemaTable) -> list[DiffOperat
     current_cols = {c.name: c for c in current.columns}
     desired_cols = {c.name: c for c in desired.columns}
 
-    # Collect explicit rename hints from desired columns
-    # (hints are stored in column metadata by the extractor, but since SchemaColumn
-    # doesn't carry raw SA column info we handle hints at the CLI level and pass
-    # them in; here we just work with names)
-    hints: dict[str, str] = {}  # new_name → old_name — injected by caller when needed
-
     disappeared = [c for c in current.columns if c.name not in desired_cols]
     appeared = [c for c in desired.columns if c.name not in current_cols]
 
-    # Apply rename heuristic
     renames, remaining_disappeared, remaining_appeared = _detect_renames(
-        current.name, disappeared, appeared, hints, len(current.columns)
+        current.name, disappeared, appeared, len(current.columns)
     )
     ops.extend(renames)
 
@@ -140,21 +133,11 @@ def _detect_renames(
     table_name: str,
     disappeared: list[SchemaColumn],
     appeared: list[SchemaColumn],
-    hints: dict[str, str],
     total_cols: int,
 ) -> tuple[list[RenameColumn], list[SchemaColumn], list[SchemaColumn]]:
     renames: list[RenameColumn] = []
     remaining_disappeared = list(disappeared)
     remaining_appeared = list(appeared)
-
-    # Apply explicit hints first (confidence = 1.0)
-    for new_name, old_name in hints.items():
-        old_col = next((c for c in remaining_disappeared if c.name == old_name), None)
-        new_col = next((c for c in remaining_appeared if c.name == new_name), None)
-        if old_col and new_col:
-            renames.append(RenameColumn(table_name, old_name, new_name, confidence=1.0))
-            remaining_disappeared.remove(old_col)
-            remaining_appeared.remove(new_col)
 
     if not remaining_disappeared or not remaining_appeared:
         return renames, remaining_disappeared, remaining_appeared
