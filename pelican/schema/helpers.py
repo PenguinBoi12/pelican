@@ -15,7 +15,9 @@ from sqlalchemy import (
     MetaData,
 )
 import inflection
-from .operations import (
+
+from pelican import get_active_runner
+from pelican.schema.operations import (
     Operation,
     AddColumn,
     DropColumn,
@@ -155,13 +157,14 @@ def create_table(table_name: str, primary_key: bool = True) -> Iterator[TableBui
             t.timestamps()
     ```
     """
-    from pelican import runner
+    runner = get_active_runner()
 
     builder = TableBuilder(table_name, runner.metadata, primary_key=primary_key)
     yield builder
 
-    with runner.engine.begin() as conn:
-        builder.table.create(conn, checkfirst=True)
+    with runner.engine.connect() as conn:
+        with conn.begin():
+            builder.table.create(conn, checkfirst=True)
 
     runner.execute_operations(builder.operations)
 
@@ -185,7 +188,7 @@ def change_table(table_name: str) -> Iterator[TableBuilder]:
             t.drop('new_name') # drop column
     ```
     """
-    from pelican import runner
+    runner = get_active_runner()
 
     table = Table(
         table_name, runner.metadata, autoload_with=runner.engine, extend_existing=True
@@ -211,8 +214,9 @@ def drop_table(table_name: str) -> None:
         drop_table('spaceships')
     ```
     """
-    from pelican import runner
+    runner = get_active_runner()
 
-    with runner.engine.begin() as conn:
-        table = Table(table_name, runner.metadata, autoload_with=runner.engine)
-        table.drop(conn)
+    with runner.engine.connect() as conn:
+        with conn.begin():
+            table = Table(table_name, runner.metadata, autoload_with=runner.engine)
+            table.drop(conn)

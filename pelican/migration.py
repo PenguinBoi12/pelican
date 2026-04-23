@@ -81,6 +81,9 @@ class MigrationRegistry:
         return iter(self.get_all())
 
 
+registry: MigrationRegistry = MigrationRegistry()
+
+
 def up(func: F) -> F:
     """Decorator to register an 'up' migration.
 
@@ -95,8 +98,6 @@ def up(func: F) -> F:
         ...
     ```
     """
-    from pelican import registry
-
     revision, name = _extract_migration_information(func)
     registry.register_up(revision, name, func)
 
@@ -117,8 +118,6 @@ def down(func: F) -> F:
         ...
     ```
     """
-    from pelican import registry
-
     revision, name = _extract_migration_information(func)
     registry.register_down(revision, name, func)
 

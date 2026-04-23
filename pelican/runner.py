@@ -8,17 +8,31 @@ from sqlalchemy.sql import Executable, DDLElement
 from sqlalchemy.sql.elements import TextClause
 from sqlmodel import SQLModel, Session, Field, select
 
+from ._contex import _active_runner
 from .migration import Migration
 from .compilers import DialectCompiler, PostgreSQLCompiler, SQLiteCompiler
 
 if TYPE_CHECKING:
-    from .operations import Operation
+    from pelican.schema.operations import Operation
 
 
 _DIALECT_COMPILERS: dict[str, type[DialectCompiler]] = {
     "sqlite": SQLiteCompiler,
     "postgresql": PostgreSQLCompiler,
 }
+
+
+def _build_compiler(engine: Engine) -> DialectCompiler:
+    dialect_name = engine.dialect.name
+    compiler_cls = _DIALECT_COMPILERS.get(dialect_name)
+
+    if not compiler_cls:
+        raise ValueError(
+            f"Unsupported dialect: {dialect_name}. "
+            f"Supported dialects: {', '.join(_DIALECT_COMPILERS.keys())}"
+        )
+
+    return compiler_cls(engine)
 
 
 class _SchemaMigration(SQLModel, table=True):
@@ -48,7 +62,7 @@ class MigrationRunner:
     def database_url(self, url: str) -> None:
         self._database_url = url
         self._engine = create_engine(url)
-        self._compiler = self._build_compiler(self._engine)
+        self._compiler = _build_compiler(self._engine)
 
     @property
     def has_database_url(self) -> bool:
@@ -73,16 +87,26 @@ class MigrationRunner:
 
     def upgrade(self, migration: Migration) -> None:
         if not migration.up:
-            raise ValueError("Migration has no upgrade function")
+            raise ValueError("Migration has no upgrade callback")
 
-        migration.up()
+        token = _active_runner.set(self)
+
+        try:
+            migration.up()
+        finally:
+            _active_runner.reset(token)
         self._record_applied(migration.revision)
 
     def downgrade(self, migration: Migration) -> None:
         if not migration.down:
-            raise ValueError("Migration has no downgrade function")
+            raise ValueError("Migration has no downgrade callback")
 
-        migration.down()
+        token = _active_runner.set(self)
+
+        try:
+            migration.up()
+        finally:
+            _active_runner.reset(token)
         self._record_unapplied(migration.revision)
 
     def execute(self, ddls: Iterable[Union[str, Executable, TextClause]]) -> None:
@@ -99,9 +123,10 @@ class MigrationRunner:
             else:
                 raise TypeError(f"Unsupported DDL type: {type(ddl)}")
 
-        with self.engine.begin() as conn:
-            for sql, params in compiled_statements:
-                conn.exec_driver_sql(sql, params)
+        with self.engine.connect() as conn:
+            with conn.begin():
+                for sql, params in compiled_statements:
+                    conn.exec_driver_sql(sql, params)
 
     def execute_operations(self, operations: Iterable["Operation"]) -> None:
         compiled_ddls = []

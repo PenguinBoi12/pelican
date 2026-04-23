@@ -2,7 +2,9 @@ import sys
 from pathlib import Path
 
 from click import group, argument, option, echo, style, pass_context, Context
-from pelican import registry, loader, runner
+from pelican import registry, loader, MigrationRunner
+
+runner = MigrationRunner()
 
 
 def _load_or_exit() -> None:
