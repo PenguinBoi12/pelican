@@ -35,11 +35,13 @@ class MigrationRunner:
         self._compiler: DialectCompiler | None = None
 
         self.metadata: MetaData = SQLModel.metadata
-        self.database_url = environ.get("DATABASE_URL", "sqlite:///database.db")
+        if url := environ.get("DATABASE_URL"):
+            self.database_url = url
 
     @property
     def database_url(self) -> str:
-        assert self._database_url is not None, "Database URL not set"
+        if self._database_url is None:
+            raise RuntimeError("Database url is not set.")
         return self._database_url
 
     @database_url.setter
@@ -47,6 +49,10 @@ class MigrationRunner:
         self._database_url = url
         self._engine = create_engine(url)
         self._compiler = self._build_compiler(self._engine)
+
+    @property
+    def has_database_url(self) -> bool:
+        return self._database_url is not None
 
     @property
     def engine(self) -> Engine:

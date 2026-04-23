@@ -47,10 +47,16 @@ def downgrade():
 
 === "Configuration"
 
-    Pelican reads the database URL from a `DATABASE_URL` environment variable or a `.env` file in your project root:
+    Pelican requires a `DATABASE_URL` environment variable:
 
+    ```bash
+    export DATABASE_URL=postgresql://user:password@localhost/mydb
     ```
-    DATABASE_URL=postgresql://user:password@localhost/mydb
+
+    You can also pass it directly to any command:
+
+    ```bash
+    pelican --database-url postgresql://user:password@localhost/mydb up
     ```
 
     Supported databases: [**SQLite**](reference/compilers/#pelican.compilers.sqlite.SQLiteCompiler), [**PostgreSQL**](reference/compilers/#pelican.compilers.postgresql.PostgreSQLCompiler).

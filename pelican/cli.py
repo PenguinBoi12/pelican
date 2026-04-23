@@ -1,23 +1,19 @@
 import sys
-from os import environ
 from pathlib import Path
 
-from click import group, argument, echo, style
+from click import group, argument, option, echo, style, pass_context, Context
 from pelican import registry, loader, runner
 
 
-def _warn_if_no_db_config() -> None:
-    if not environ.get("DATABASE_URL") and not Path(".env").exists():
+def _load_or_exit() -> None:
+    if not runner.has_database_url:
         echo(
-            style("Warning:", fg="yellow")
-            + " DATABASE_URL is not set and no .env file found."
-            + " Using sqlite:///database.db by default.",
+            style("Error:", fg="red")
+            + " DATABASE_URL is not set. Set it in your environment or .env file.",
             err=True,
         )
+        sys.exit(1)
 
-
-def _load_or_exit() -> None:
-    _warn_if_no_db_config()
     try:
         loader.load_migrations()
     except FileNotFoundError:
@@ -29,9 +25,14 @@ def _load_or_exit() -> None:
 
 
 @group()
-def cli() -> None:
+@option("--database-url", default=None, help="Override the database URL.")
+@pass_context
+def cli(ctx: Context, database_url: str | None) -> None:
     """Pelican - Modern database migrations for SQLAlchemy"""
-    pass
+    ctx.ensure_object(dict)
+
+    if database_url:
+        runner.database_url = database_url
 
 
 @cli.command()

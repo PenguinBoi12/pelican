@@ -15,6 +15,9 @@ class _NoopLoader:
 
 
 class _EmptyRunner:
+    def has_database_url(self) -> bool:
+        return True
+
     def get_applied_versions(self) -> Iterator[int]:
         return iter([])
 
@@ -23,6 +26,9 @@ class _AppliedRunner:
     def __init__(self, applied: list[int]) -> None:
         self._applied = applied
 
+    def has_database_url(self) -> bool:
+        return True
+
     def get_applied_versions(self) -> Iterator[int]:
         return iter(self._applied)
 
@@ -30,6 +36,9 @@ class _AppliedRunner:
 class _SuccessRunner:
     def __init__(self, applied: list[int] | None = None) -> None:
         self._applied = applied or []
+
+    def has_database_url(self) -> bool:
+        return True
 
     def get_applied_versions(self) -> Iterator[int]:
         return iter(self._applied)
