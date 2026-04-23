@@ -1,6 +1,7 @@
 from os import environ
 from datetime import datetime
-from typing import Union, Iterator, Iterable, TYPE_CHECKING
+from collections.abc import Iterator, Iterable
+from typing import TYPE_CHECKING
 
 from sqlalchemy import inspect, create_engine, MetaData
 from sqlalchemy.engine import Engine
@@ -8,12 +9,11 @@ from sqlalchemy.sql import Executable, DDLElement
 from sqlalchemy.sql.elements import TextClause
 from sqlmodel import SQLModel, Session, Field, select
 
-from ._contex import _active_runner
-from .migration import Migration
+from ._types import Migration
 from .compilers import DialectCompiler, PostgreSQLCompiler, SQLiteCompiler
 
 if TYPE_CHECKING:
-    from pelican.schema.operations import Operation
+    from .schema.operations import Operation
 
 
 _DIALECT_COMPILERS: dict[str, type[DialectCompiler]] = {
@@ -43,13 +43,13 @@ class _SchemaMigration(SQLModel, table=True):
 
 
 class MigrationRunner:
-    def __init__(self) -> None:
+    def __init__(self, database_url: str | None = None) -> None:
         self._database_url: str | None = None
         self._engine: Engine | None = None
         self._compiler: DialectCompiler | None = None
 
         self.metadata: MetaData = SQLModel.metadata
-        if url := environ.get("DATABASE_URL"):
+        if url := database_url or environ.get("DATABASE_URL"):
             self.database_url = url
 
     @property
@@ -87,29 +87,19 @@ class MigrationRunner:
 
     def upgrade(self, migration: Migration) -> None:
         if not migration.up:
-            raise ValueError("Migration has no upgrade callback")
+            raise ValueError("Migration has no upgrade function")
 
-        token = _active_runner.set(self)
-
-        try:
-            migration.up()
-        finally:
-            _active_runner.reset(token)
+        migration.up()
         self._record_applied(migration.revision)
 
     def downgrade(self, migration: Migration) -> None:
         if not migration.down:
-            raise ValueError("Migration has no downgrade callback")
+            raise ValueError("Migration has no downgrade function")
 
-        token = _active_runner.set(self)
-
-        try:
-            migration.up()
-        finally:
-            _active_runner.reset(token)
+        migration.down()
         self._record_unapplied(migration.revision)
 
-    def execute(self, ddls: Iterable[Union[str, Executable, TextClause]]) -> None:
+    def execute(self, ddls: Iterable[str | Executable | TextClause]) -> None:
         compiled_statements: list[tuple[str, dict]] = []
 
         for ddl in ddls:
@@ -161,15 +151,3 @@ class MigrationRunner:
 
             session.delete(revision)
             session.commit()
-
-    def _build_compiler(self, engine: Engine) -> DialectCompiler:
-        dialect_name = engine.dialect.name
-        compiler_cls = _DIALECT_COMPILERS.get(dialect_name)
-
-        if not compiler_cls:
-            raise ValueError(
-                f"Unsupported dialect: {dialect_name}. "
-                f"Supported dialects: {', '.join(_DIALECT_COMPILERS.keys())}"
-            )
-
-        return compiler_cls(engine)

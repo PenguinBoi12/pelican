@@ -1,11 +1,10 @@
-import sys
 from pathlib import Path
-from types import ModuleType
 from typing import Callable, Generator
 
 import pytest
 
 from pelican.migration import MigrationRegistry
+from pelican._context import _active_registry
 
 
 @pytest.fixture(autouse=True)
@@ -16,19 +15,10 @@ def use_test_database(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.fixture
 def registry() -> Generator[MigrationRegistry, None, None]:
     registry_ = MigrationRegistry()
+    token = _active_registry.set(registry_)
     yield registry_
+    _active_registry.reset(token)
     registry_.clear()
-
-
-@pytest.fixture(autouse=True)
-def setup_pelican_module(registry: MigrationRegistry) -> Generator[None, None, None]:
-    pelican_mock = ModuleType("pelican")
-    pelican_mock.registry = registry  # type: ignore
-    sys.modules["pelican"] = pelican_mock
-
-    yield
-
-    sys.modules.pop("pelican", None)
 
 
 @pytest.fixture

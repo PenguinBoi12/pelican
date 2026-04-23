@@ -16,7 +16,7 @@ from sqlalchemy import (
 )
 import inflection
 
-from pelican import get_active_runner
+from pelican._context import get_runner
 from pelican.schema.operations import (
     Operation,
     AddColumn,
@@ -157,8 +157,7 @@ def create_table(table_name: str, primary_key: bool = True) -> Iterator[TableBui
             t.timestamps()
     ```
     """
-    runner = get_active_runner()
-
+    runner = get_runner()
     builder = TableBuilder(table_name, runner.metadata, primary_key=primary_key)
     yield builder
 
@@ -188,8 +187,7 @@ def change_table(table_name: str) -> Iterator[TableBuilder]:
             t.drop('new_name') # drop column
     ```
     """
-    runner = get_active_runner()
-
+    runner = get_runner()
     table = Table(
         table_name, runner.metadata, autoload_with=runner.engine, extend_existing=True
     )
@@ -214,7 +212,7 @@ def drop_table(table_name: str) -> None:
         drop_table('spaceships')
     ```
     """
-    runner = get_active_runner()
+    runner = get_runner()
 
     with runner.engine.connect() as conn:
         with conn.begin():

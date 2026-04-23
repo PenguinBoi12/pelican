@@ -4,8 +4,8 @@ import pytest
 from sqlalchemy import inspect
 
 from pelican import create_table, change_table, drop_table
-from pelican.migration import Migration
-from pelican.runner import MigrationRunner
+from pelican._types import Migration
+from pelican.runner import MigrationRunner, _build_compiler
 from pelican.compilers import SQLiteCompiler
 
 
@@ -259,14 +259,12 @@ def test_set_database_url__expect_compiler_matches_dialect(
     assert isinstance(db_runner.compiler, SQLiteCompiler)
 
 
-def test_set_database_url__with_unsupported_dialect__expect_error(
-    db_runner: MigrationRunner,
-) -> None:
+def test_set_database_url__with_unsupported_dialect__expect_error() -> None:
     mock_engine = MagicMock()
     mock_engine.dialect.name = "mysql"
 
     with pytest.raises(ValueError, match="Unsupported dialect"):
-        db_runner._build_compiler(mock_engine)
+        _build_compiler(mock_engine)
 
 
 def test_set_database_url__expect_isolated_from_previous_database(
