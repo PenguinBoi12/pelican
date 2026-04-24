@@ -30,9 +30,6 @@ class DiffResult:
     ops: list[DiffOperation]
     renames: list[RenameColumn]
 
-    def all_ops(self) -> list[DiffOperation]:
-        return [*self.ops, *self.renames]
-
     def __bool__(self) -> bool:
         return bool(self.ops or self.renames)
 

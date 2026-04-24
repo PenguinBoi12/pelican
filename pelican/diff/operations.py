@@ -1,8 +1,7 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 
 from .schema import (
-    SchemaState,
     SchemaTable,
     SchemaColumn,
     SchemaIndex,
@@ -12,9 +11,6 @@ from .schema import (
 
 
 class DiffOperation(ABC):
-    @abstractmethod
-    def apply(self, state: SchemaState) -> SchemaState: ...
-
     @abstractmethod
     def render_up(self) -> list[str]: ...
 
@@ -106,9 +102,6 @@ class CreateTable(DiffOperation):
     def __str__(self) -> str:
         return f"+ Create table: {self.table.name}"
 
-    def apply(self, state: SchemaState) -> SchemaState:
-        return replace(state, tables=[*state.tables, self.table])
-
     def render_up(self) -> list[str]:
         return _render_table_block(self.table)
 
@@ -122,11 +115,6 @@ class DropTable(DiffOperation):
 
     def __str__(self) -> str:
         return f"- Drop table: {self.table.name}"
-
-    def apply(self, state: SchemaState) -> SchemaState:
-        return replace(
-            state, tables=[t for t in state.tables if t.name != self.table.name]
-        )
 
     def render_up(self) -> list[str]:
         return [f"drop_table({self.table.name!r})"]
@@ -143,19 +131,6 @@ class AddColumn(DiffOperation):
     def __str__(self) -> str:
         return f"~ {self.table_name}: add column {self.column.name} {self.column.type}"
 
-    def apply(self, state: SchemaState) -> SchemaState:
-        return replace(
-            state,
-            tables=[
-                (
-                    replace(t, columns=[*t.columns, self.column])
-                    if t.name == self.table_name
-                    else t
-                )
-                for t in state.tables
-            ],
-        )
-
     def render_up(self) -> list[str]:
         return [render_column_call(self.column)]
 
@@ -170,21 +145,6 @@ class DropColumn(DiffOperation):
 
     def __str__(self) -> str:
         return f"~ {self.table_name}: drop column {self.column.name}"
-
-    def apply(self, state: SchemaState) -> SchemaState:
-        return replace(
-            state,
-            tables=[
-                (
-                    replace(
-                        t, columns=[c for c in t.columns if c.name != self.column.name]
-                    )
-                    if t.name == self.table_name
-                    else t
-                )
-                for t in state.tables
-            ],
-        )
 
     def render_up(self) -> list[str]:
         return [f"t.drop({self.column.name!r})"]
@@ -211,29 +171,6 @@ class RenameColumn(DiffOperation):
             self.table_name, self.new_col
         )
 
-    def apply(self, state: SchemaState) -> SchemaState:
-        return replace(
-            state,
-            tables=[
-                (
-                    replace(
-                        t,
-                        columns=[
-                            (
-                                replace(c, name=self.new_name)
-                                if c.name == self.old_name
-                                else c
-                            )
-                            for c in t.columns
-                        ],
-                    )
-                    if t.name == self.table_name
-                    else t
-                )
-                for t in state.tables
-            ],
-        )
-
     def render_up(self) -> list[str]:
         return [f"t.rename({self.old_name!r}, {self.new_name!r})"]
 
@@ -250,29 +187,6 @@ class AlterColumnType(DiffOperation):
 
     def __str__(self) -> str:
         return f"~ {self.table_name}: alter {self.column_name} type {self.old_type} → {self.new_type}"
-
-    def apply(self, state: SchemaState) -> SchemaState:
-        return replace(
-            state,
-            tables=[
-                (
-                    replace(
-                        t,
-                        columns=[
-                            (
-                                replace(c, type=self.new_type)
-                                if c.name == self.column_name
-                                else c
-                            )
-                            for c in t.columns
-                        ],
-                    )
-                    if t.name == self.table_name
-                    else t
-                )
-                for t in state.tables
-            ],
-        )
 
     def render_up(self) -> list[str]:
         return [
@@ -295,29 +209,6 @@ class AlterColumnNullable(DiffOperation):
     def __str__(self) -> str:
         return f"~ {self.table_name}: alter {self.column_name} nullable {self.old_nullable} → {self.new_nullable}"
 
-    def apply(self, state: SchemaState) -> SchemaState:
-        return replace(
-            state,
-            tables=[
-                (
-                    replace(
-                        t,
-                        columns=[
-                            (
-                                replace(c, nullable=self.new_nullable)
-                                if c.name == self.column_name
-                                else c
-                            )
-                            for c in t.columns
-                        ],
-                    )
-                    if t.name == self.table_name
-                    else t
-                )
-                for t in state.tables
-            ],
-        )
-
     def render_up(self) -> list[str]:
         return [f"t.alter({self.column_name!r}, nullable={self.new_nullable!r})"]
 
@@ -334,29 +225,6 @@ class AlterColumnServerDefault(DiffOperation):
 
     def __str__(self) -> str:
         return f"~ {self.table_name}: alter {self.column_name} server_default {self.old_server_default!r} → {self.new_server_default!r}"
-
-    def apply(self, state: SchemaState) -> SchemaState:
-        return replace(
-            state,
-            tables=[
-                (
-                    replace(
-                        t,
-                        columns=[
-                            (
-                                replace(c, server_default=self.new_server_default)
-                                if c.name == self.column_name
-                                else c
-                            )
-                            for c in t.columns
-                        ],
-                    )
-                    if t.name == self.table_name
-                    else t
-                )
-                for t in state.tables
-            ],
-        )
 
     def render_up(self) -> list[str]:
         val = (
@@ -383,19 +251,6 @@ class CreateIndex(DiffOperation):
     def __str__(self) -> str:
         return f"~ {self.table_name}: add index {self.index.name}"
 
-    def apply(self, state: SchemaState) -> SchemaState:
-        return replace(
-            state,
-            tables=[
-                (
-                    replace(t, indexes=[*t.indexes, self.index])
-                    if t.name == self.table_name
-                    else t
-                )
-                for t in state.tables
-            ],
-        )
-
     def render_up(self) -> list[str]:
         unique_part = ", unique=True" if self.index.unique else ""
         return [
@@ -413,21 +268,6 @@ class DropIndex(DiffOperation):
 
     def __str__(self) -> str:
         return f"~ {self.table_name}: drop index {self.index.name}"
-
-    def apply(self, state: SchemaState) -> SchemaState:
-        return replace(
-            state,
-            tables=[
-                (
-                    replace(
-                        t, indexes=[i for i in t.indexes if i.name != self.index.name]
-                    )
-                    if t.name == self.table_name
-                    else t
-                )
-                for t in state.tables
-            ],
-        )
 
     def render_up(self) -> list[str]:
         return [f"t.remove_index(name={self.index.name!r})"]
@@ -447,21 +287,6 @@ class AddCheckConstraint(DiffOperation):
     def __str__(self) -> str:
         return f"~ {self.table_name}: add check constraint {self.constraint.name}"
 
-    def apply(self, state: SchemaState) -> SchemaState:
-        return replace(
-            state,
-            tables=[
-                (
-                    replace(
-                        t, check_constraints=[*t.check_constraints, self.constraint]
-                    )
-                    if t.name == self.table_name
-                    else t
-                )
-                for t in state.tables
-            ],
-        )
-
     def render_up(self) -> list[str]:
         return [
             f"# TODO: add check constraint {self.constraint.name!r}: {self.constraint.expression}"
@@ -479,26 +304,6 @@ class DropCheckConstraint(DiffOperation):
     def __str__(self) -> str:
         return f"~ {self.table_name}: drop check constraint {self.constraint.name}"
 
-    def apply(self, state: SchemaState) -> SchemaState:
-        return replace(
-            state,
-            tables=[
-                (
-                    replace(
-                        t,
-                        check_constraints=[
-                            c
-                            for c in t.check_constraints
-                            if c.expression != self.constraint.expression
-                        ],
-                    )
-                    if t.name == self.table_name
-                    else t
-                )
-                for t in state.tables
-            ],
-        )
-
     def render_up(self) -> list[str]:
         return [f"# TODO: drop check constraint {self.constraint.name!r}"]
 
@@ -514,9 +319,6 @@ class CreateEnum(DiffOperation):
 
     def __str__(self) -> str:
         return f"+ Create enum: {self.enum.name}"
-
-    def apply(self, state: SchemaState) -> SchemaState:
-        return replace(state, enums=[*state.enums, self.enum])
 
     def render_up(self) -> list[str]:
         return [
@@ -534,11 +336,6 @@ class DropEnum(DiffOperation):
     def __str__(self) -> str:
         return f"- Drop enum: {self.enum.name}"
 
-    def apply(self, state: SchemaState) -> SchemaState:
-        return replace(
-            state, enums=[e for e in state.enums if e.name != self.enum.name]
-        )
-
     def render_up(self) -> list[str]:
         return [f"# TODO: DROP TYPE {self.enum.name}"]
 
@@ -555,19 +352,6 @@ class AddEnumValue(DiffOperation):
 
     def __str__(self) -> str:
         return f"~ enum {self.enum_name}: add value {self.value!r}"
-
-    def apply(self, state: SchemaState) -> SchemaState:
-        return replace(
-            state,
-            enums=[
-                (
-                    replace(e, values=[*e.values, self.value])
-                    if e.name == self.enum_name
-                    else e
-                )
-                for e in state.enums
-            ],
-        )
 
     def render_up(self) -> list[str]:
         return [
@@ -587,19 +371,6 @@ class RemoveEnumValue(DiffOperation):
 
     def __str__(self) -> str:
         return f"~ enum {self.enum_name}: remove value {self.value!r} [WARNING: requires table rewrite]"
-
-    def apply(self, state: SchemaState) -> SchemaState:
-        return replace(
-            state,
-            enums=[
-                (
-                    replace(e, values=[v for v in e.values if v != self.value])
-                    if e.name == self.enum_name
-                    else e
-                )
-                for e in state.enums
-            ],
-        )
 
     def render_up(self) -> list[str]:
         return [
