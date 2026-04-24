@@ -66,6 +66,7 @@ class MigrationRunner:
 
     @property
     def has_database_url(self) -> bool:
+        """Whether a database URL has been configured on this runner."""
         return self._database_url is not None
 
     @property

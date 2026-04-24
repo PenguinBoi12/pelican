@@ -82,6 +82,8 @@ markdown_extensions:
       base_path: [".."]
 nav:
   - Home: index.md
+  - Guides:
+      - Programmatic usage: guides/programmatic-usage.md
   - Reference:
       - Migration: reference/migration.md
       - Runner: reference/runner.md

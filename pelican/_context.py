@@ -14,6 +14,20 @@ _active_registry: ContextVar[MigrationRegistry | None] = ContextVar(
 
 
 def get_runner() -> MigrationRunner:
+    """Return the active `MigrationRunner` for the current context.
+
+    ## Example
+
+    ```python
+    from pelican import get_runner
+
+    def my_helper() -> None:
+        runner = get_runner()
+        runner.upgrade(migration)
+    ```
+
+    Raises `RuntimeError` if called outside of a `use_context` block.
+    """
     runner = _active_runner.get()
     if runner is None:
         raise RuntimeError("No active MigrationRunner.")
@@ -21,6 +35,21 @@ def get_runner() -> MigrationRunner:
 
 
 def get_registry() -> MigrationRegistry:
+    """Return the active `MigrationRegistry` for the current context.
+
+    ## Example
+
+    ```python
+    from pelican import get_registry
+
+    def my_helper() -> None:
+        registry = get_registry()
+        for migration in registry:
+            ...
+    ```
+
+    Raises `RuntimeError` if called outside of a `use_context` block.
+    """
     registry = _active_registry.get()
     if registry is None:
         raise RuntimeError("No active MigrationRegistry.")
@@ -33,6 +62,20 @@ def use_context(
     *,
     database_url: str | None = None,
 ) -> Iterator[MigrationRunner]:
+    """Activate a runner and registry for the duration of a `with` block.
+
+    ## Example
+
+    ```python
+    from pelican import use_context
+    from pelican import loader
+
+    with use_context(database_url="postgresql://user:password@localhost/mydb") as runner:
+        registry = loader.load_migrations("db/migrations")
+        for migration in registry:
+            runner.upgrade(migration)
+    ```
+    """
     active = runner or MigrationRunner(database_url=database_url)
     registry = MigrationRegistry()
 
