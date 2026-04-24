@@ -2,7 +2,7 @@
 
 ::: pelican.migration.Migration
 
-::: pelican.migration.MigrationRegistry
+::: pelican.registry.MigrationRegistry
 
 ::: pelican.migration.up
 

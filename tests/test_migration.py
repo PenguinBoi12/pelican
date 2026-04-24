@@ -37,6 +37,7 @@ def test_register_decorator__expect_migration_registered(
 
 @pytest.mark.parametrize("decorator,direction", [(up, "up"), (down, "down")])
 def test_register_decorator__with_duplicate__expect_error(
+    registry: MigrationRegistry,
     migration_func: Callable,
     decorator: Callable,
     direction: str,

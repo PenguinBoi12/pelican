@@ -1,9 +1,12 @@
+from unittest.mock import MagicMock
+
 import pytest
 from sqlalchemy import inspect
 
 from pelican import create_table, change_table, drop_table
-from pelican.migration import Migration
-from pelican.runner import MigrationRunner
+from pelican._types import Migration
+from pelican.runner import MigrationRunner, _build_compiler
+from pelican.compilers import SQLiteCompiler
 
 
 def _table_exists(runner: MigrationRunner, name: str) -> bool:
@@ -224,4 +227,55 @@ def test_upgrade_then_downgrade__expect_table_created_and_removed(
 
     db_runner.downgrade(migration)
     assert not _table_exists(db_runner, "posts")
+    assert 1 not in list(db_runner.get_applied_versions())
+
+
+def test_set_database_url__expect_url_updated(db_runner: MigrationRunner) -> None:
+    new_url = "sqlite:///:memory:"
+    db_runner.database_url = new_url
+    assert db_runner.database_url == new_url
+
+
+def test_set_database_url__expect_new_engine_created(
+    db_runner: MigrationRunner,
+) -> None:
+    original_engine = db_runner.engine
+    db_runner.database_url = "sqlite:///:memory:"
+    assert db_runner.engine is not original_engine
+
+
+def test_set_database_url__expect_new_compiler_created(
+    db_runner: MigrationRunner,
+) -> None:
+    original_compiler = db_runner.compiler
+    db_runner.database_url = "sqlite:///:memory:"
+    assert db_runner.compiler is not original_compiler
+
+
+def test_set_database_url__expect_compiler_matches_dialect(
+    db_runner: MigrationRunner,
+) -> None:
+    db_runner.database_url = "sqlite:///:memory:"
+    assert isinstance(db_runner.compiler, SQLiteCompiler)
+
+
+def test_set_database_url__with_unsupported_dialect__expect_error() -> None:
+    mock_engine = MagicMock()
+    mock_engine.dialect.name = "mysql"
+
+    with pytest.raises(ValueError, match="Unsupported dialect"):
+        _build_compiler(mock_engine)
+
+
+def test_set_database_url__expect_isolated_from_previous_database(
+    db_runner: MigrationRunner,
+) -> None:
+    migration = Migration(name="init", revision=1)
+    migration.up = lambda: None
+    db_runner.upgrade(migration)
+    assert 1 in list(db_runner.get_applied_versions())
+
+    db_runner.database_url = "sqlite:///:memory:"
+    db_runner._ensure_version_table_exists()
+
     assert 1 not in list(db_runner.get_applied_versions())

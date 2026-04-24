@@ -1,25 +1,27 @@
 import sys
-from os import environ
 from pathlib import Path
 
-from click import group, argument, echo, style
-from pelican import registry, loader, runner
+from click import group, argument, option, echo, style, pass_context, Context
+
+from pelican._context import use_context, get_runner
+from pelican.runner import MigrationRunner
+from pelican.registry import MigrationRegistry
+from pelican import loader
 
 
-def _warn_if_no_db_config() -> None:
-    if not environ.get("DATABASE_URL") and not Path(".env").exists():
+def _load_or_exit() -> tuple[MigrationRunner, MigrationRegistry]:
+    runner = get_runner()
+
+    if not runner.has_database_url:
         echo(
-            style("Warning:", fg="yellow")
-            + " DATABASE_URL is not set and no .env file found."
-            + " Using sqlite:///database.db by default.",
+            style("Error:", fg="red")
+            + " DATABASE_URL is not set. Set it in your environment or .env file.",
             err=True,
         )
+        sys.exit(1)
 
-
-def _load_or_exit() -> None:
-    _warn_if_no_db_config()
     try:
-        loader.load_migrations()
+        registry = loader.load_migrations()
     except FileNotFoundError:
         echo(
             "No migrations directory found. "
@@ -27,11 +29,15 @@ def _load_or_exit() -> None:
         )
         sys.exit(0)
 
+    return runner, registry
+
 
 @group()
-def cli() -> None:
+@option("--database-url", default=None, help="Override the database URL.")
+@pass_context
+def cli(ctx: Context, database_url: str | None) -> None:
     """Pelican - Modern database migrations for SQLAlchemy"""
-    pass
+    ctx.with_resource(use_context(database_url=database_url))
 
 
 @cli.command()
@@ -80,7 +86,7 @@ def generate(name: str) -> None:
 @argument("revision", nargs=1, default=None, required=False, type=int)
 def up(revision: int | None) -> None:
     """Upgrade the migration to the given or latest revision."""
-    _load_or_exit()
+    runner, registry = _load_or_exit()
 
     if revision:
         migration = registry.get(revision)
@@ -111,7 +117,7 @@ def up(revision: int | None) -> None:
 @argument("revision", nargs=1, default=None, required=False, type=int)
 def down(revision: int | None) -> None:
     """Downgrade the migration to the given or latest revision."""
-    _load_or_exit()
+    runner, registry = _load_or_exit()
 
     if not revision:
         applied = list(runner.get_applied_versions())
@@ -134,7 +140,8 @@ def down(revision: int | None) -> None:
 @cli.command()
 def status() -> None:
     """Display the migration status."""
-    _load_or_exit()
+    runner, registry = _load_or_exit()
+
     applied = set(runner.get_applied_versions())
 
     echo("\nMigration Status")

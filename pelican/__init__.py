@@ -1,7 +1,7 @@
 """Pelican - Modern database migrations for Python."""
 
-from .migration import MigrationRegistry
 from .runner import MigrationRunner
+from ._context import use_context, get_runner, get_registry
 from .schema import create_table, change_table, drop_table
 
 from importlib.metadata import version, PackageNotFoundError
@@ -13,10 +13,11 @@ except PackageNotFoundError:
 
 __all__ = [
     "__version__",
+    "MigrationRunner",
+    "use_context",
+    "get_runner",
+    "get_registry",
     "create_table",
     "change_table",
     "drop_table",
 ]
-
-registry: MigrationRegistry = MigrationRegistry()
-runner: MigrationRunner = MigrationRunner()

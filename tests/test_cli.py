@@ -1,5 +1,7 @@
 from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Any, Generator
 
 import pytest
 from click.testing import CliRunner
@@ -7,19 +9,19 @@ from click.testing import CliRunner
 import pelican.cli as cli_module
 from pelican.cli import cli
 from pelican.migration import Migration, MigrationRegistry
-
-
-class _NoopLoader:
-    def load_migrations(self) -> None:
-        pass
+from pelican._context import _active_runner, _active_registry
 
 
 class _EmptyRunner:
+    has_database_url = True
+
     def get_applied_versions(self) -> Iterator[int]:
         return iter([])
 
 
 class _AppliedRunner:
+    has_database_url = True
+
     def __init__(self, applied: list[int]) -> None:
         self._applied = applied
 
@@ -28,6 +30,8 @@ class _AppliedRunner:
 
 
 class _SuccessRunner:
+    has_database_url = True
+
     def __init__(self, applied: list[int] | None = None) -> None:
         self._applied = applied or []
 
@@ -41,14 +45,6 @@ class _SuccessRunner:
         pass
 
 
-class _EmptyRegistry:
-    def get(self, revision: int) -> None:
-        return None
-
-    def get_all(self) -> list[Migration]:
-        return []
-
-
 def _registry_with(*revisions: int) -> MigrationRegistry:
     r = MigrationRegistry()
     for rev in revisions:
@@ -57,8 +53,31 @@ def _registry_with(*revisions: int) -> MigrationRegistry:
     return r
 
 
+def _patch_context(
+    monkeypatch: pytest.MonkeyPatch, runner: Any, registry: MigrationRegistry
+) -> None:
+    @contextmanager
+    def fake_use_context(**kwargs: Any) -> Generator[object, Any, None]:
+        r_token = _active_runner.set(runner)
+        reg_token = _active_registry.set(registry)
+        try:
+            yield runner
+        finally:
+            _active_runner.reset(r_token)
+            _active_registry.reset(reg_token)
+
+    monkeypatch.setattr(cli_module, "use_context", fake_use_context)
+
+
 @pytest.fixture(autouse=True)
 def patch_loader(monkeypatch: pytest.MonkeyPatch) -> None:
+    from pelican._context import get_registry
+    from pelican.registry import MigrationRegistry
+
+    class _NoopLoader:
+        def load_migrations(self) -> MigrationRegistry:
+            return get_registry()
+
     monkeypatch.setattr(cli_module, "loader", _NoopLoader())
 
 
@@ -96,8 +115,7 @@ def test_init__with_existing_project__expect_skip_messages(
 def test_down__with_no_applied_migrations__expect_message(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(cli_module, "runner", _EmptyRunner())
-    monkeypatch.setattr(cli_module, "registry", _EmptyRegistry())
+    _patch_context(monkeypatch, _EmptyRunner(), MigrationRegistry())
 
     result = CliRunner().invoke(cli, ["down"])
 
@@ -108,8 +126,7 @@ def test_down__with_no_applied_migrations__expect_message(
 def test_down__with_unknown_revision__expect_exit_1(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(cli_module, "runner", _AppliedRunner([1]))
-    monkeypatch.setattr(cli_module, "registry", _EmptyRegistry())
+    _patch_context(monkeypatch, _AppliedRunner([1]), MigrationRegistry())
 
     result = CliRunner().invoke(cli, ["down", "99"])
 
@@ -120,8 +137,7 @@ def test_down__with_unknown_revision__expect_exit_1(
 def test_up__with_unknown_revision__expect_exit_1(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(cli_module, "runner", _EmptyRunner())
-    monkeypatch.setattr(cli_module, "registry", _EmptyRegistry())
+    _patch_context(monkeypatch, _EmptyRunner(), MigrationRegistry())
 
     result = CliRunner().invoke(cli, ["up", "99"])
 
@@ -132,8 +148,7 @@ def test_up__with_unknown_revision__expect_exit_1(
 def test_up__with_already_applied_revision__expect_message(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(cli_module, "runner", _AppliedRunner([1]))
-    monkeypatch.setattr(cli_module, "registry", _registry_with(1))
+    _patch_context(monkeypatch, _AppliedRunner([1]), _registry_with(1))
 
     result = CliRunner().invoke(cli, ["up", "1"])
 
@@ -142,8 +157,7 @@ def test_up__with_already_applied_revision__expect_message(
 
 
 def test_up__expect_applied_output(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(cli_module, "runner", _SuccessRunner(applied=[]))
-    monkeypatch.setattr(cli_module, "registry", _registry_with(1))
+    _patch_context(monkeypatch, _SuccessRunner(applied=[]), _registry_with(1))
 
     result = CliRunner().invoke(cli, ["up"])
 
@@ -152,8 +166,7 @@ def test_up__expect_applied_output(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_down__expect_rolled_back_output(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(cli_module, "runner", _SuccessRunner(applied=[1]))
-    monkeypatch.setattr(cli_module, "registry", _registry_with(1))
+    _patch_context(monkeypatch, _SuccessRunner(applied=[1]), _registry_with(1))
 
     result = CliRunner().invoke(cli, ["down"])
 
@@ -164,8 +177,7 @@ def test_down__expect_rolled_back_output(monkeypatch: pytest.MonkeyPatch) -> Non
 def test_status__with_mixed_migrations__expect_correct_symbols(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(cli_module, "runner", _AppliedRunner([1]))
-    monkeypatch.setattr(cli_module, "registry", _registry_with(1, 2))
+    _patch_context(monkeypatch, _AppliedRunner([1]), _registry_with(1, 2))
 
     result = CliRunner().invoke(cli, ["status"])
 

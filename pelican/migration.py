@@ -1,84 +1,18 @@
 from pathlib import Path
 from typing import Any, Callable, TypeVar, Iterator
-from dataclasses import dataclass
+
+from ._types import Migration, MigrationError, DuplicateMigrationError
+from .registry import MigrationRegistry
+from ._context import get_registry
 
 F = TypeVar("F", bound=Callable[..., Any])
 
-
-class MigrationError(Exception):
-    """Base exception for migration errors."""
-
-    pass
-
-
-class DuplicateMigrationError(MigrationError):
-    """Raised when attempting to register duplicate up/down for same revision."""
-
-    pass
-
-
-@dataclass
-class Migration:
-    name: str
-    revision: int
-    up: Callable[..., Any] | None = None
-    down: Callable[..., Any] | None = None
-
-    @property
-    def display_name(self) -> str:
-        return self.name.replace("_", " ").capitalize()
-
-    @property
-    def file_name(self) -> str:
-        return f"{self.revision}_{self.name}.py"
-
-
-class MigrationRegistry:
-    def __init__(self) -> None:
-        self._migrations: dict[int, Migration] = {}
-
-    def register_up(self, revision: int, name: str, func: F) -> None:
-        migration = self._migrations.get(
-            revision, Migration(revision=revision, name=name)
-        )
-
-        if not self._migrations.get(revision):
-            self._migrations[revision] = migration
-
-        if migration.up:
-            raise DuplicateMigrationError(
-                f"'up' migration already registered for revision {revision}"
-            )
-        migration.up = func
-
-    def register_down(self, revision: int, name: str, func: F) -> None:
-        migration = self._migrations.get(
-            revision, Migration(revision=revision, name=name)
-        )
-
-        if not self._migrations.get(revision):
-            self._migrations[revision] = migration
-
-        if migration.down:
-            raise DuplicateMigrationError(
-                f"'down' migration already registered for revision {revision}"
-            )
-        migration.down = func
-
-    def get_all(self) -> list[Migration]:
-        return sorted(self._migrations.values(), key=lambda m: m.revision)
-
-    def get(self, revision: int) -> Migration | None:
-        return self._migrations.get(revision)
-
-    def clear(self) -> None:
-        self._migrations.clear()
-
-    def __len__(self) -> int:
-        return len(self.get_all())
-
-    def __iter__(self) -> Iterator[Migration]:
-        return iter(self.get_all())
+__all__ = [
+    "Migration",
+    "MigrationError",
+    "DuplicateMigrationError",
+    "MigrationRegistry",
+]
 
 
 def up(func: F) -> F:
@@ -95,11 +29,8 @@ def up(func: F) -> F:
         ...
     ```
     """
-    from pelican import registry
-
     revision, name = _extract_migration_information(func)
-    registry.register_up(revision, name, func)
-
+    get_registry().register_up(revision, name, func)
     return func
 
 
@@ -117,11 +48,8 @@ def down(func: F) -> F:
         ...
     ```
     """
-    from pelican import registry
-
     revision, name = _extract_migration_information(func)
-    registry.register_down(revision, name, func)
-
+    get_registry().register_down(revision, name, func)
     return func
 
 
