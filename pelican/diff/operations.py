@@ -6,6 +6,7 @@ from .schema import (
     SchemaColumn,
     SchemaIndex,
     SchemaCheckConstraint,
+    SchemaForeignKey,
     SchemaEnum,
 )
 
@@ -380,4 +381,40 @@ class RemoveEnumValue(DiffOperation):
     def render_down(self) -> list[str]:
         return [
             f"# WARNING: re-adding enum value {self.value!r} to {self.enum_name} — check ordering."
+        ]
+
+
+@dataclass
+class AddForeignKey(DiffOperation):
+    table_name: str
+    fk: SchemaForeignKey
+
+    def __str__(self) -> str:
+        return f"~ {self.table_name}: add foreign key {self.fk.columns!r} → {self.fk.ref_table}"
+
+    def render_up(self) -> list[str]:
+        on_delete = f" ON DELETE {self.fk.on_delete}" if self.fk.on_delete else ""
+        return [
+            f"# TODO: ADD CONSTRAINT {self.fk.name!r} FOREIGN KEY {self.fk.columns!r} REFERENCES {self.fk.ref_table!r} {self.fk.ref_columns!r}{on_delete}"
+        ]
+
+    def render_down(self) -> list[str]:
+        return [f"# TODO: DROP CONSTRAINT {self.fk.name!r}"]
+
+
+@dataclass
+class DropForeignKey(DiffOperation):
+    table_name: str
+    fk: SchemaForeignKey
+
+    def __str__(self) -> str:
+        return f"~ {self.table_name}: drop foreign key {self.fk.columns!r} → {self.fk.ref_table}"
+
+    def render_up(self) -> list[str]:
+        return [f"# TODO: DROP CONSTRAINT {self.fk.name!r}"]
+
+    def render_down(self) -> list[str]:
+        on_delete = f" ON DELETE {self.fk.on_delete}" if self.fk.on_delete else ""
+        return [
+            f"# TODO: ADD CONSTRAINT {self.fk.name!r} FOREIGN KEY {self.fk.columns!r} REFERENCES {self.fk.ref_table!r} {self.fk.ref_columns!r}{on_delete}"
         ]

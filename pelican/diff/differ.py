@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from difflib import SequenceMatcher
 
-from .schema import SchemaState, SchemaTable, SchemaColumn
+from .schema import SchemaState, SchemaTable, SchemaColumn, SchemaForeignKey
 from .operations import (
     DiffOperation,
     CreateTable,
@@ -16,6 +16,8 @@ from .operations import (
     DropIndex,
     AddCheckConstraint,
     DropCheckConstraint,
+    AddForeignKey,
+    DropForeignKey,
     CreateEnum,
     DropEnum,
     AddEnumValue,
@@ -93,6 +95,7 @@ def _diff_table(current: SchemaTable, desired: SchemaTable) -> list[DiffOperatio
     ops.extend(_diff_columns(current, desired))
     ops.extend(_diff_indexes(current, desired))
     ops.extend(_diff_check_constraints(current, desired))
+    ops.extend(_diff_foreign_keys(current, desired))
     return ops
 
 
@@ -242,5 +245,25 @@ def _diff_check_constraints(
 
     for expr in current_exprs.keys() - desired_exprs.keys():
         ops.append(DropCheckConstraint(current.name, current_exprs[expr]))
+
+    return ops
+
+
+def _diff_foreign_keys(
+    current: SchemaTable, desired: SchemaTable
+) -> list[DiffOperation]:
+    ops: list[DiffOperation] = []
+
+    def _fk_key(fk: SchemaForeignKey) -> tuple[tuple[str, ...], str, tuple[str, ...]]:
+        return (tuple(fk.columns), fk.ref_table, tuple(fk.ref_columns))
+
+    current_fks = {_fk_key(fk): fk for fk in current.foreign_keys}
+    desired_fks = {_fk_key(fk): fk for fk in desired.foreign_keys}
+
+    for key in desired_fks.keys() - current_fks.keys():
+        ops.append(AddForeignKey(desired.name, desired_fks[key]))
+
+    for key in current_fks.keys() - desired_fks.keys():
+        ops.append(DropForeignKey(current.name, current_fks[key]))
 
     return ops
