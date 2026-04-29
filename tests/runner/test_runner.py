@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import inspect
 
 from pelican import create_table, change_table, drop_table
-from pelican._types import Migration
+from pelican._types import Migration, UnsupportedDialectError
 from pelican.runner import MigrationRunner, _build_compiler
 from pelican.compilers import SQLiteCompiler
 
@@ -169,7 +169,7 @@ def test_change_table__with_alter_on_sqlite__expect_not_implemented(
     with create_table("shapes") as t:
         t.string("kind")
 
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(UnsupportedDialectError):
         with change_table("shapes") as t:
             t.alter("kind", nullable=True)
 

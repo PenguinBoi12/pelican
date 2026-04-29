@@ -10,6 +10,10 @@ class DuplicateMigrationError(MigrationError):
     pass
 
 
+class UnsupportedDialectError(MigrationError):
+    pass
+
+
 @dataclass
 class Migration:
     name: str

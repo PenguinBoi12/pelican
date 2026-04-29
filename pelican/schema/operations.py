@@ -78,3 +78,30 @@ class RemoveIndex(Operation):
 
     def compile(self, compiler: DialectCompiler) -> Iterable[Executable]:
         return compiler.drop_index(self.table_name, self.index_name)
+
+
+@dataclass
+class AddForeignKeyConstraint(Operation):
+    columns: list[str]
+    ref_table: str
+    ref_columns: list[str]
+    constraint_name: str | None
+    on_delete: str | None
+
+    def compile(self, compiler: DialectCompiler) -> Iterable[Executable]:
+        return compiler.add_foreign_key(
+            self.table_name,
+            self.columns,
+            self.ref_table,
+            self.ref_columns,
+            name=self.constraint_name,
+            on_delete=self.on_delete,
+        )
+
+
+@dataclass
+class DropForeignKeyConstraint(Operation):
+    constraint_name: str
+
+    def compile(self, compiler: DialectCompiler) -> Iterable[Executable]:
+        return compiler.drop_foreign_key(self.table_name, self.constraint_name)

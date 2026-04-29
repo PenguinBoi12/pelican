@@ -73,3 +73,26 @@ class DialectCompiler(ABC):
         index = Index(index_name, _table=table)
 
         return [DropIndex(index)]
+
+    def add_foreign_key(
+        self,
+        table_name: str,
+        columns: list[str],
+        ref_table: str,
+        ref_columns: list[str],
+        name: str | None = None,
+        on_delete: str | None = None,
+    ) -> Iterable[DDL]:
+        cols = ", ".join(columns)
+        ref_cols = ", ".join(ref_columns)
+        constraint = f"CONSTRAINT {name} " if name else ""
+        on_delete_clause = f" ON DELETE {on_delete}" if on_delete else ""
+        return [
+            DDL(
+                f"ALTER TABLE {table_name} ADD {constraint}"
+                f"FOREIGN KEY ({cols}) REFERENCES {ref_table} ({ref_cols}){on_delete_clause}"
+            )
+        ]
+
+    def drop_foreign_key(self, table_name: str, constraint_name: str) -> Iterable[DDL]:
+        return [DDL(f"ALTER TABLE {table_name} DROP CONSTRAINT {constraint_name}")]

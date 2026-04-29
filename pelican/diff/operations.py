@@ -6,6 +6,7 @@ from .schema import (
     SchemaColumn,
     SchemaIndex,
     SchemaCheckConstraint,
+    SchemaForeignKey,
     SchemaEnum,
 )
 
@@ -381,3 +382,46 @@ class RemoveEnumValue(DiffOperation):
         return [
             f"# WARNING: re-adding enum value {self.value!r} to {self.enum_name} — check ordering."
         ]
+
+
+def _render_add_fk(fk: SchemaForeignKey) -> str:
+    args = f"{fk.columns!r}, {fk.ref_table!r}, {fk.ref_columns!r}"
+    if fk.name:
+        args += f", name={fk.name!r}"
+    if fk.on_delete:
+        args += f", on_delete={fk.on_delete!r}"
+    return f"t.add_foreign_key({args})"
+
+
+def _render_remove_fk(fk: SchemaForeignKey) -> str:
+    return f"t.remove_foreign_key(name={fk.name!r})"
+
+
+@dataclass
+class AddForeignKey(DiffOperation):
+    table_name: str
+    fk: SchemaForeignKey
+
+    def __str__(self) -> str:
+        return f"~ {self.table_name}: add foreign key {self.fk.columns!r} → {self.fk.ref_table}"
+
+    def render_up(self) -> list[str]:
+        return [_render_add_fk(self.fk)]
+
+    def render_down(self) -> list[str]:
+        return [_render_remove_fk(self.fk)]
+
+
+@dataclass
+class DropForeignKey(DiffOperation):
+    table_name: str
+    fk: SchemaForeignKey
+
+    def __str__(self) -> str:
+        return f"~ {self.table_name}: drop foreign key {self.fk.columns!r} → {self.fk.ref_table}"
+
+    def render_up(self) -> list[str]:
+        return [_render_remove_fk(self.fk)]
+
+    def render_down(self) -> list[str]:
+        return [_render_add_fk(self.fk)]

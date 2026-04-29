@@ -3,6 +3,7 @@ from sqlalchemy import Integer, Text
 
 from pelican.compilers.sqlite import SQLiteCompiler
 from pelican.runner import _DIALECT_COMPILERS
+from pelican._types import UnsupportedDialectError
 
 
 def test_dialect_registry__expect_sqlite_registered() -> None:
@@ -19,12 +20,12 @@ def test_rename_column__expect_rename_sql(sqlite_compiler: SQLiteCompiler) -> No
 def test_alter_column__with_new_type__expect_not_implemented(
     sqlite_compiler: SQLiteCompiler,
 ) -> None:
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(UnsupportedDialectError):
         sqlite_compiler.alter_column("users", "bio", new_type=Text())
 
 
 def test_alter_column__with_nullable__expect_not_implemented(
     sqlite_compiler: SQLiteCompiler,
 ) -> None:
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(UnsupportedDialectError):
         sqlite_compiler.alter_column("users", "email", nullable=False)
