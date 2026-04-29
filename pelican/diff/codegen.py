@@ -27,6 +27,13 @@ _STANDALONE = (
 def render_up(ops: Sequence[DiffOperation]) -> str:
     lines: list[str] = []
 
+    create_ops = _fk_sorted([op for op in ops if isinstance(op, CreateTable)])
+    drop_ops = list(reversed(_fk_sorted([op for op in ops if isinstance(op, DropTable)])))
+
+    for op in create_ops:
+        lines.extend(_INDENT + line for line in op.render_up())
+    for op in drop_ops:
+        lines.extend(_INDENT + line for line in op.render_up())
     for op in ops:
         if isinstance(op, (CreateEnum, AddEnumValue)):
             lines.extend(_INDENT + line for line in op.render_up())
