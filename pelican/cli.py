@@ -69,18 +69,18 @@ def init() -> None:
 
 @cli.command()
 @argument("name", nargs=1)
-def generate(name: str) -> None:
-    """Generate a new migration with the given name"""
-    from .generator import generate_migration
-
-    migrations_dir = Path("db/migrations")
-    dir_existed = migrations_dir.exists()
-
-    migration_file = generate_migration(name=name)
-
-    if not dir_existed:
-        echo(f"Created {migrations_dir}/")
-    echo(f"Generated {migration_file}")
+@option(
+    "--models",
+    "models_path",
+    default=None,
+    help="Import path to your models module (e.g. myapp.models). Autogenerate the migration body.",
+)
+def generate(name: str, models_path: str | None) -> None:
+    """Generate a new migration. Pass --models to autogenerate from your schema."""
+    if models_path is not None:
+        _generate_from_models(name, models_path)
+    else:
+        _generate_blank(name)
 
 
 @cli.command()
@@ -173,30 +173,27 @@ def _confirm_renames(renames: list) -> list:
     return confirmed
 
 
-@cli.command()
-@argument("name", nargs=1)
-@option(
-    "--models",
-    "models_path",
-    required=True,
-    help="Import path to your models module (e.g. myapp.models)",
-)
-def autogenerate(name: str, models_path: str) -> None:
-    """Autogenerate a migration by diffing your models against the live database."""
+def _generate_blank(name: str) -> None:
+    from .generator import generate_migration
+
+    migrations_dir = Path("db/migrations")
+    dir_existed = migrations_dir.exists()
+
+    migration_file = generate_migration(name=name)
+
+    if not dir_existed:
+        echo(f"Created {migrations_dir}/")
+    echo(f"Generated {migration_file}")
+
+
+def _generate_from_models(name: str, models_path: str) -> None:
     from .diff.discovery import load_target_metadata
     from .diff.extractor import extract_from_metadata
     from .diff.inspector import introspect_live_db
     from .diff.differ import diff
     from .generator import generate_migration
 
-    db_runner = get_runner()
-    if not db_runner.has_database_url:
-        echo(
-            style("Error:", fg="red")
-            + " DATABASE_URL is not set. Set it in your environment or .env file.",
-            err=True,
-        )
-        sys.exit(1)
+    db_runner, _ = _load_or_exit()
 
     try:
         metadata = load_target_metadata(models_path)
