@@ -1,6 +1,6 @@
 """{migration.revision} - {migration.display_name}"""
 from pelican import migration
-from sqlalchemy import *
+
 
 @migration.up
 def upgrade() -> None:

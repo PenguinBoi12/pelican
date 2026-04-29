@@ -5,6 +5,7 @@ from pelican.diff.schema import (
     SchemaIndex,
     SchemaCheckConstraint,
     SchemaEnum,
+    SchemaForeignKey,
 )
 from pelican.diff.operations import (
     CreateTable,
@@ -19,6 +20,7 @@ from pelican.diff.operations import (
     DropIndex,
     AddEnumValue,
     RemoveEnumValue,
+    CreateEnum,
 )
 from collections.abc import Sequence
 
@@ -185,3 +187,35 @@ def test_render_migration__with_remove_enum_value__expect_warning_in_up() -> Non
     up = _up(ops)
     assert "WARNING" in up
     assert "banned" in up
+
+
+def test_render_up__with_enum_and_table__expect_enum_before_table() -> None:
+    enum = SchemaEnum("status", ["active", "inactive"])
+    table = SchemaTable("users", columns=[_col("name")])
+    ops = [CreateTable(table), CreateEnum(enum)]
+    up = _up(ops)
+    assert up.index("TODO") < up.index("create_table")
+
+
+def test_render_up__with_fk_tables__expect_referenced_table_first() -> None:
+    users = SchemaTable("users", columns=[_col("name")])
+    posts = SchemaTable(
+        "posts",
+        columns=[_col("title")],
+        foreign_keys=[SchemaForeignKey(None, ["user_id"], "users", ["id"], None)],
+    )
+    ops = [CreateTable(posts), CreateTable(users)]
+    up = _up(ops)
+    assert up.index("create_table('users')") < up.index("create_table('posts')")
+
+
+def test_render_down__with_fk_tables__expect_referencing_table_dropped_first() -> None:
+    users = SchemaTable("users", columns=[_col("name")])
+    posts = SchemaTable(
+        "posts",
+        columns=[_col("title")],
+        foreign_keys=[SchemaForeignKey(None, ["user_id"], "users", ["id"], None)],
+    )
+    ops = [CreateTable(posts), CreateTable(users)]
+    down = _down(ops)
+    assert down.index("drop_table('posts')") < down.index("drop_table('users')")

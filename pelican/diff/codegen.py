@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from typing import Any
 
 from .operations import (
     DiffOperation,
@@ -27,7 +28,17 @@ def render_up(ops: Sequence[DiffOperation]) -> str:
     lines: list[str] = []
 
     for op in ops:
-        if isinstance(op, _STANDALONE):
+        if isinstance(op, (CreateEnum, AddEnumValue)):
+            lines.extend(_INDENT + line for line in op.render_up())
+
+    for op in _fk_sorted([op for op in ops if isinstance(op, CreateTable)]):
+        lines.extend(_INDENT + line for line in op.render_up())
+
+    for op in reversed(_fk_sorted([op for op in ops if isinstance(op, DropTable)])):
+        lines.extend(_INDENT + line for line in op.render_up())
+
+    for op in ops:
+        if isinstance(op, (DropEnum, RemoveEnumValue)):
             lines.extend(_INDENT + line for line in op.render_up())
 
     for table_name, t_ops in sorted(_group_by_table(ops).items()):
@@ -41,8 +52,18 @@ def render_up(ops: Sequence[DiffOperation]) -> str:
 def render_down(ops: Sequence[DiffOperation]) -> str:
     lines: list[str] = []
 
-    for op in reversed(ops):
-        if isinstance(op, _STANDALONE):
+    for op in reversed(list(ops)):
+        if isinstance(op, (DropEnum, RemoveEnumValue)):
+            lines.extend(_INDENT + line for line in op.render_down())
+
+    for op in _fk_sorted([op for op in ops if isinstance(op, DropTable)]):
+        lines.extend(_INDENT + line for line in op.render_down())
+
+    for op in reversed(_fk_sorted([op for op in ops if isinstance(op, CreateTable)])):
+        lines.extend(_INDENT + line for line in op.render_down())
+
+    for op in reversed(list(ops)):
+        if isinstance(op, (CreateEnum, AddEnumValue)):
             lines.extend(_INDENT + line for line in op.render_down())
 
     for table_name, t_ops in sorted(_group_by_table(ops).items()):
@@ -51,6 +72,29 @@ def render_down(ops: Sequence[DiffOperation]) -> str:
             lines.extend(block)
 
     return "\n".join(lines) if lines else f"{_INDENT}pass"
+
+
+def _fk_sorted(ops: list[Any]) -> list[Any]:
+    """Sort CreateTable/DropTable ops so referenced tables come before tables that reference them."""
+    if len(ops) <= 1:
+        return ops
+
+    by_name = {op.table.name: op for op in ops}
+    visited: set[str] = set()
+    result: list[Any] = []
+
+    def visit(name: str) -> None:
+        if name in visited or name not in by_name:
+            return
+        visited.add(name)
+        for fk in by_name[name].table.foreign_keys:
+            visit(fk.ref_table)
+        result.append(by_name[name])
+
+    for name in sorted(by_name):
+        visit(name)
+
+    return result
 
 
 def _render_change_table(
