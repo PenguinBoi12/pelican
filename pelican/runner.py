@@ -71,12 +71,14 @@ class MigrationRunner:
 
     @property
     def engine(self) -> Engine:
-        assert self._engine is not None, "Database engine not initialized"
+        if self._engine is None:
+            raise RuntimeError("Database engine not initialized.")
         return self._engine
 
     @property
     def compiler(self) -> DialectCompiler:
-        assert self._compiler is not None, "Database compiler not initialized"
+        if self._compiler is None:
+            raise RuntimeError("Database compiler not initialized.")
         return self._compiler
 
     def get_applied_versions(self) -> Iterator[int]:

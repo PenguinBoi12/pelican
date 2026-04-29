@@ -214,7 +214,7 @@ def autogenerate(name: str, models_path: str) -> None:
 
     ops = diff_result.ops + _confirm_renames(diff_result.renames)
 
-    echo("\nDetecting changes...\n")
+    echo("\nDetected changes:\n")
     for op in ops:
         echo(f"  {op}")
 

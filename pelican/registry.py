@@ -10,12 +10,9 @@ class MigrationRegistry:
         self._migrations: dict[int, Migration] = {}
 
     def register_up(self, revision: int, name: str, func: F) -> None:
-        migration = self._migrations.get(
+        migration = self._migrations.setdefault(
             revision, Migration(revision=revision, name=name)
         )
-
-        if not self._migrations.get(revision):
-            self._migrations[revision] = migration
 
         if migration.up:
             raise DuplicateMigrationError(
@@ -24,12 +21,9 @@ class MigrationRegistry:
         migration.up = func
 
     def register_down(self, revision: int, name: str, func: F) -> None:
-        migration = self._migrations.get(
+        migration = self._migrations.setdefault(
             revision, Migration(revision=revision, name=name)
         )
-
-        if not self._migrations.get(revision):
-            self._migrations[revision] = migration
 
         if migration.down:
             raise DuplicateMigrationError(
