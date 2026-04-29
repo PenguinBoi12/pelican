@@ -1,7 +1,12 @@
 from pathlib import Path
 from typing import Any, Callable, TypeVar
 
-from ._types import Migration, MigrationError, DuplicateMigrationError, UnsupportedDialectError
+from ._types import (
+    Migration,
+    MigrationError,
+    DuplicateMigrationError,
+    UnsupportedDialectError,
+)
 from .registry import MigrationRegistry
 from ._context import get_registry
 
