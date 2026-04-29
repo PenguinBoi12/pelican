@@ -43,12 +43,16 @@ class _SchemaMigration(SQLModel, table=True):
 
 
 class MigrationRunner:
-    def __init__(self, database_url: str | None = None) -> None:
+    def __init__(
+        self,
+        database_url: str | None = None,
+        metadata: MetaData | None = None,
+    ) -> None:
         self._database_url: str | None = None
         self._engine: Engine | None = None
         self._compiler: DialectCompiler | None = None
 
-        self.metadata: MetaData = SQLModel.metadata
+        self.metadata: MetaData = metadata or SQLModel.metadata
         if url := database_url or environ.get("DATABASE_URL"):
             self.database_url = url
 
@@ -71,12 +75,14 @@ class MigrationRunner:
 
     @property
     def engine(self) -> Engine:
-        assert self._engine is not None, "Database engine not initialized"
+        if self._engine is None:
+            raise RuntimeError("Database engine not initialized.")
         return self._engine
 
     @property
     def compiler(self) -> DialectCompiler:
-        assert self._compiler is not None, "Database compiler not initialized"
+        if self._compiler is None:
+            raise RuntimeError("Database compiler not initialized.")
         return self._compiler
 
     def get_applied_versions(self) -> Iterator[int]:
