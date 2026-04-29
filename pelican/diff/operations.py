@@ -384,6 +384,19 @@ class RemoveEnumValue(DiffOperation):
         ]
 
 
+def _render_add_fk(fk: SchemaForeignKey) -> str:
+    args = f"{fk.columns!r}, {fk.ref_table!r}, {fk.ref_columns!r}"
+    if fk.name:
+        args += f", name={fk.name!r}"
+    if fk.on_delete:
+        args += f", on_delete={fk.on_delete!r}"
+    return f"t.add_foreign_key({args})"
+
+
+def _render_remove_fk(fk: SchemaForeignKey) -> str:
+    return f"t.remove_foreign_key(name={fk.name!r})"
+
+
 @dataclass
 class AddForeignKey(DiffOperation):
     table_name: str
@@ -393,13 +406,10 @@ class AddForeignKey(DiffOperation):
         return f"~ {self.table_name}: add foreign key {self.fk.columns!r} → {self.fk.ref_table}"
 
     def render_up(self) -> list[str]:
-        on_delete = f" ON DELETE {self.fk.on_delete}" if self.fk.on_delete else ""
-        return [
-            f"# TODO: ADD CONSTRAINT {self.fk.name!r} FOREIGN KEY {self.fk.columns!r} REFERENCES {self.fk.ref_table!r} {self.fk.ref_columns!r}{on_delete}"
-        ]
+        return [_render_add_fk(self.fk)]
 
     def render_down(self) -> list[str]:
-        return [f"# TODO: DROP CONSTRAINT {self.fk.name!r}"]
+        return [_render_remove_fk(self.fk)]
 
 
 @dataclass
@@ -411,10 +421,7 @@ class DropForeignKey(DiffOperation):
         return f"~ {self.table_name}: drop foreign key {self.fk.columns!r} → {self.fk.ref_table}"
 
     def render_up(self) -> list[str]:
-        return [f"# TODO: DROP CONSTRAINT {self.fk.name!r}"]
+        return [_render_remove_fk(self.fk)]
 
     def render_down(self) -> list[str]:
-        on_delete = f" ON DELETE {self.fk.on_delete}" if self.fk.on_delete else ""
-        return [
-            f"# TODO: ADD CONSTRAINT {self.fk.name!r} FOREIGN KEY {self.fk.columns!r} REFERENCES {self.fk.ref_table!r} {self.fk.ref_columns!r}{on_delete}"
-        ]
+        return [_render_add_fk(self.fk)]

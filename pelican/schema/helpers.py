@@ -25,6 +25,8 @@ from pelican.schema.operations import (
     AlterColumn,
     CreateIndex,
     RemoveIndex,
+    AddForeignKeyConstraint,
+    DropForeignKeyConstraint,
 )
 
 _T = TypeVar("_T", bound=Any)
@@ -123,6 +125,29 @@ class TableBuilder:
         self.operations.append(
             CreateIndex(self.table_name, name, column_names, unique=unique)
         )
+
+    def add_foreign_key(
+        self,
+        columns: list[str],
+        ref_table: str,
+        ref_columns: list[str],
+        *,
+        name: str | None = None,
+        on_delete: str | None = None,
+    ) -> None:
+        self.operations.append(
+            AddForeignKeyConstraint(
+                self.table_name,
+                columns=columns,
+                ref_table=ref_table,
+                ref_columns=ref_columns,
+                constraint_name=name,
+                on_delete=on_delete,
+            )
+        )
+
+    def remove_foreign_key(self, *, name: str) -> None:
+        self.operations.append(DropForeignKeyConstraint(self.table_name, name))
 
     def remove_index(
         self, column_names: list[str] | None = None, *, name: str | None = None
