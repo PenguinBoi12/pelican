@@ -43,12 +43,16 @@ class _SchemaMigration(SQLModel, table=True):
 
 
 class MigrationRunner:
-    def __init__(self, database_url: str | None = None) -> None:
+    def __init__(
+        self,
+        database_url: str | None = None,
+        metadata: MetaData | None = None,
+    ) -> None:
         self._database_url: str | None = None
         self._engine: Engine | None = None
         self._compiler: DialectCompiler | None = None
 
-        self.metadata: MetaData = SQLModel.metadata
+        self.metadata: MetaData = metadata or SQLModel.metadata
         if url := database_url or environ.get("DATABASE_URL"):
             self.database_url = url
 
