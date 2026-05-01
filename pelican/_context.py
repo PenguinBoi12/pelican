@@ -2,6 +2,8 @@ from contextvars import ContextVar
 from contextlib import contextmanager
 from typing import Iterator
 
+from sqlalchemy import MetaData
+
 from .runner import MigrationRunner
 from .registry import MigrationRegistry
 
@@ -58,9 +60,9 @@ def get_registry() -> MigrationRegistry:
 
 @contextmanager
 def use_context(
-    runner: MigrationRunner | None = None,
     *,
     database_url: str | None = None,
+    metadata: MetaData | None = None,
 ) -> Iterator[MigrationRunner]:
     """Activate a runner and registry for the duration of a `with` block.
 
@@ -76,7 +78,7 @@ def use_context(
             runner.upgrade(migration)
     ```
     """
-    active = runner or MigrationRunner(database_url=database_url)
+    active = MigrationRunner(database_url=database_url, metadata=metadata)
     registry = MigrationRegistry()
 
     r_token = _active_runner.set(active)

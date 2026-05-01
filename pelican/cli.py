@@ -1,6 +1,7 @@
 import sys
 from pathlib import Path
 
+import click
 from click import group, argument, option, echo, style, pass_context, Context
 
 from pelican._context import use_context, get_runner
@@ -68,18 +69,18 @@ def init() -> None:
 
 @cli.command()
 @argument("name", nargs=1)
-def generate(name: str) -> None:
-    """Generate a new migration with the given name"""
-    from .generator import generate_migration
-
-    migrations_dir = Path("db/migrations")
-    dir_existed = migrations_dir.exists()
-
-    migration_file = generate_migration(name=name)
-
-    if not dir_existed:
-        echo(f"Created {migrations_dir}/")
-    echo(f"Generated {migration_file}")
+@option(
+    "--models",
+    "models_path",
+    default=None,
+    help="Import path to your models module (e.g. myapp.models). Autogenerate the migration body.",
+)
+def generate(name: str, models_path: str | None) -> None:
+    """Generate a new migration. Pass --models to autogenerate from your schema."""
+    if models_path is not None:
+        _generate_from_models(name, models_path)
+    else:
+        _generate_blank(name)
 
 
 @cli.command()
@@ -156,6 +157,69 @@ def status() -> None:
             f"{style(status_symbol, fg=color)} {migration.revision} {migration.display_name}"
         )
     echo()
+
+
+def _confirm_renames(renames: list) -> list:
+    confirmed = []
+    for rename in renames:
+        if click.confirm(
+            f"Did you rename '{rename.old_name}' to '{rename.new_name}'"
+            f" in table '{rename.table_name}'?",
+            default=False,
+        ):
+            confirmed.append(rename)
+        else:
+            confirmed.extend(rename.to_drop_add())
+    return confirmed
+
+
+def _generate_blank(name: str) -> None:
+    from .generator import generate_migration
+
+    migrations_dir = Path("db/migrations")
+    dir_existed = migrations_dir.exists()
+
+    migration_file = generate_migration(name=name)
+
+    if not dir_existed:
+        echo(f"Created {migrations_dir}/")
+    echo(f"Generated {migration_file}")
+
+
+def _generate_from_models(name: str, models_path: str) -> None:
+    from .diff.discovery import load_target_metadata
+    from .diff.extractor import extract_from_metadata
+    from .diff.inspector import introspect_live_db
+    from .diff.differ import diff
+    from .generator import generate_migration
+
+    db_runner, _ = _load_or_exit()
+
+    try:
+        metadata = load_target_metadata(models_path)
+    except (ImportError, ValueError) as e:
+        echo(style("Error:", fg="red") + f" {e}", err=True)
+        sys.exit(1)
+
+    desired = extract_from_metadata(metadata, db_runner.engine.dialect)
+    current = introspect_live_db(db_runner.engine)
+    diff_result = diff(current, desired)
+
+    if not diff_result:
+        echo("No changes detected.")
+        return
+
+    ops = diff_result.ops + _confirm_renames(diff_result.renames)
+
+    echo("\nDetected changes:\n")
+    for op in ops:
+        echo(f"  {op}")
+
+    migration_file = generate_migration(name, ops=ops)
+    echo(f"\nGenerated {migration_file}")
+    echo(
+        style("Tip:", fg="cyan") + " Review the migration before running 'pelican up'."
+    )
 
 
 if __name__ == "__main__":

@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, Callable, TypeVar, Iterator
+from typing import Any, Callable, TypeVar
 
 from ._types import Migration, MigrationError, DuplicateMigrationError
 from .registry import MigrationRegistry
